@@ -40,7 +40,7 @@
           </div>
           <div class="col-md-6">
             <label>กลุ่มงาน (D)</label>
-            <select id="req_d" class="form-select" required><option value="" disabled selected>โหลดข้อมูล...</option></select>
+            <input type="text" id="req_d" class="form-control" readonly placeholder="จะขึ้นอัตโนมัติเมื่อเลือกผู้ขอ">
           </div>
         </div>
         <div class="row mb-3">
@@ -182,9 +182,9 @@
         <div id="viewBody" class="row">
           </div>
       </div>
-      <div class="modal-footer d-flex justify-content-between">
+      <<div class="modal-footer d-flex justify-content-between">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
-        <button type="button" class="btn btn-primary" onclick="printDoc()">🖨️ พิมพ์ออก PDF (Google Doc)</button>
+        <button type="button" class="btn btn-primary" onclick="printDoc()">🖨️ เปิดเอกสาร Google Doc</button>
       </div>
     </div>
   </div>
@@ -202,6 +202,7 @@
   
   let globalData = []; 
   let carList = []; 
+  let userList = []; // 🟢 เก็บตัวแปรไว้จับคู่
 
   async function loadOptions() {
     try {
@@ -210,14 +211,15 @@
       if (json.status === 'success') {
         const d = json.data;
         
-        // 1. เติม DataList สำหรับ พิมพ์ค้นหา ผู้ขอ
+        // 🟢 1. เติม DataList สำหรับ ผู้ขอ และเก็บข้อมูลลง userList
+        userList = d.users;
         const listReqC = document.getElementById('listReqC');
-        d.users.forEach(u => listReqC.innerHTML += `<option value="${u}">`);
+        listReqC.innerHTML = '';
+        userList.forEach(u => listReqC.innerHTML += `<option value="${u.name}">`);
 
         // 2. เติม Select ทั่วไป
-        populateSelect('req_d', d.groups, 'เลือกกลุ่มงาน');
         populateSelect('assign_m', d.drivers, 'เลือกผู้ขับรถ');
-        populateSelect('filterDriver', d.drivers, '-- กรองผู้ขับรถทั้งหมด --'); // สำหรับหน้ารายงาน พขร.
+        populateSelect('filterDriver', d.drivers, '-- กรองผู้ขับรถทั้งหมด --'); 
         
         // 3. จัดการรถ
         carList = d.cars;
@@ -229,6 +231,16 @@
       console.error(err);
     }
   }
+
+  // 🟢 เพิ่มตัวดักจับ (Event Listener) เมื่อเลือกชื่อผู้ขอ ให้ดึงกลุ่มงานมาใส่ทันที
+  document.getElementById('req_c').addEventListener('input', function() {
+     const selectedUser = userList.find(u => u.name === this.value);
+     if(selectedUser) {
+         document.getElementById('req_d').value = selectedUser.group;
+     } else {
+         document.getElementById('req_d').value = ''; // เคลียร์ค่าถ้าลบชื่อออก
+     }
+  });
 
   function populateSelect(id, arr, placeholder) {
     const el = document.getElementById(id);
