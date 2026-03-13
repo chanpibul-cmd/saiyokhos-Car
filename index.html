@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการรถยนต์</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+  
+  <style>
+    body { background-color: #f4f7f6; font-family: 'Sarabun', sans-serif; }
+    .nav-pills .nav-link.active { background-color: #0d6efd; }
+    .nav-link { cursor: pointer; color: #495057; font-weight: bold; }
+    .page-section { display: none; padding: 20px 0; }
+    .page-section.active { display: block; }
+    .card { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
+    .table-responsive { font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+<div class="container mt-4">
+  <h2 class="text-center mb-4 text-primary">🚙 ระบบบริหารจัดการรถยนต์</h2>
+
+  <ul class="nav nav-pills justify-content-center mb-4" id="menuTabs">
+    <li class="nav-item"><a class="nav-link active" onclick="switchPage('page-request')">📝 ขอใช้รถ</a></li>
+    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-assign')">🔑 จัดรถ</a></li>
+    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-driver')">👨‍✈️ รายงาน พขร.</a></li>
+    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-report')">📊 รายงานทั้งหมด</a></li>
+  </ul>
+
+  <div id="page-request" class="page-section active">
+    <div class="card p-4 mx-auto" style="max-width: 800px;">
+      <h4 class="mb-4">แบบฟอร์มขอใช้รถ</h4>
+      <form id="formRequest">
+        <div class="row mb-3">
+          <div class="col-md-6"><label>ผู้ขอ (C)</label><input type="text" id="req_c" class="form-control" required></div>
+          <div class="col-md-6"><label>กลุ่มงาน (D)</label><input type="text" id="req_d" class="form-control" required></div>
+        </div>
+        <div class="row mb-3">
+          <div class="col-md-6"><label>ขอวันที่ (E)</label><input type="datetime-local" id="req_e" class="form-control" required></div>
+          <div class="col-md-6"><label>ถึงวันที่ (F)</label><input type="datetime-local" id="req_f" class="form-control" required></div>
+        </div>
+        <div class="mb-3"><label>เรื่อง (G)</label><input type="text" id="req_g" class="form-control" required></div>
+        <div class="mb-3"><label>สถานที่ (H)</label><input type="text" id="req_h" class="form-control" required></div>
+        <div class="row mb-3">
+          <div class="col-md-3"><label>จำนวน (I)</label><input type="number" id="req_i" class="form-control" min="1" required></div>
+          <div class="col-md-9"><label>ได้แก่ (J)</label><input type="text" id="req_j" class="form-control" required></div>
+        </div>
+        <div class="mb-3"><label>รายละเอียดเพิ่มเติม (K)</label><textarea id="req_k" class="form-control" rows="2"></textarea></div>
+        <div class="mb-4"><label>ประเภทรถ (L)</label>
+          <select id="req_l" class="form-select" required>
+            <option value="" disabled selected>เลือกประเภทรถ...</option>
+            <option value="รถตู้">รถตู้</option><option value="รถกระบะ">รถกระบะ</option><option value="รถเก๋ง">รถเก๋ง</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 py-2">💾 บันทึกคำขอ</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="page-assign" class="page-section">
+    <div class="card p-4">
+      <h4 class="mb-3">รายการรอจัดรถ (เฉพาะรายการที่ยังไม่มีคนขับ)</h4>
+      <div class="table-responsive">
+        <table id="tableAssign" class="table table-striped w-100">
+          <thead><tr><th>ID</th><th>วันที่ขอ</th><th>ผู้ขอ</th><th>เรื่อง</th><th>สถานที่</th><th>ประเภทรถ</th><th>จัดการ</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-driver" class="page-section">
+    <div class="card p-4">
+      <h4 class="mb-3">รายการรอลงบันทึกการขับรถ (เฉพาะรายการที่จัดรถแล้ว)</h4>
+      <div class="table-responsive">
+        <table id="tableDriver" class="table table-striped w-100">
+          <thead><tr><th>ID</th><th>วันที่ใช้รถ</th><th>ผู้ขอ</th><th>สถานที่</th><th>ผู้ขับรถ</th><th>ทะเบียน</th><th>จัดการ</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-report" class="page-section">
+    <div class="card p-4">
+      <h4 class="mb-3">ประวัติการใช้รถทั้งหมด</h4>
+      <div class="table-responsive">
+        <table id="tableReport" class="table table-striped w-100">
+          <thead><tr><th>ID</th><th>สถานะ</th><th>วันที่ขอ</th><th>ผู้ขอ</th><th>เรื่อง</th><th>สถานที่</th><th>คนขับ</th><th>ทะเบียน</th><th>กม.ไป-กลับ</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal fade" id="modalAssign" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">🔑 จัดรถ (ID: <span id="assign_id_lbl"></span>)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="formAssign">
+          <input type="hidden" id="assign_id">
+          <div class="mb-3"><label>ผู้ขับรถ (M)</label><input type="text" id="assign_m" class="form-control" required></div>
+          <div class="mb-3"><label>ทะเบียน (N)</label><input type="text" id="assign_n" class="form-control" required></div>
+          <div class="mb-3"><label>รุ่น (O)</label><input type="text" id="assign_o" class="form-control" required></div>
+          <button type="submit" class="btn btn-success w-100">บันทึกการจัดรถ</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalDriver" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">👨‍✈️ บันทึกการขับรถ (ID: <span id="driver_id_lbl"></span>)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="formDriver">
+          <input type="hidden" id="driver_id">
+          <div class="row mb-3">
+            <div class="col-md-6"><label>ขับจริง (P)</label><input type="datetime-local" id="driver_p" class="form-control" required></div>
+            <div class="col-md-6"><label>ขับถึงจริง (Q)</label><input type="datetime-local" id="driver_q" class="form-control" required></div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-4"><label>กม. เริ่ม (R)</label><input type="number" id="driver_r" class="form-control" required></div>
+            <div class="col-md-4"><label>กม. ถึง (S)</label><input type="number" id="driver_s" class="form-control" required></div>
+            <div class="col-md-4"><label>ผลต่าง (T)</label><input type="number" id="driver_t" class="form-control" readonly></div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6"><label>เติมน้ำมัน (ลิตร) (U)</label><input type="number" step="0.01" id="driver_u" class="form-control"></div>
+            <div class="col-md-6"><label>เป็นเงิน (บาท) (V)</label><input type="number" step="0.01" id="driver_v" class="form-control"></div>
+          </div>
+          <button type="submit" class="btn btn-success w-100">บันทึกรายงาน</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+  // *** ใส่ URL Web App ของคุณที่นี่ ***
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzLj_8-s9kwQuxds2I-zdC7g_LykbKnZPTw_h9qDl1rb8YjPKbng5ZjcsG-z6QVjRiM4A/exec'; 
+  
+  let globalData = []; // เก็บข้อมูลที่โหลดมาจาก Sheet
+
+  // สลับหน้าจอ
+  function switchPage(pageId) {
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+    event.target.classList.add('active');
+
+    // ถ้ากดเข้าหน้าตาราง ให้ดึงข้อมูลใหม่
+    if (pageId !== 'page-request') loadData();
+  }
+
+  // เรียก API กลาง
+  async function callAPI(action, payload) {
+    Swal.fire({ title: 'กำลังประมวลผล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action, payload })
+      });
+      const data = await res.json();
+      if (data.status !== 'success') throw new Error(data.message);
+      return data;
+    } catch (err) {
+      Swal.fire('ข้อผิดพลาด', err.message || 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้', 'error');
+      throw err;
+    }
+  }
+
+  // ================= 1. ขอใช้รถ =================
+  document.getElementById('formRequest').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const st = new Date(document.getElementById('req_e').value);
+    const en = new Date(document.getElementById('req_f').value);
+    
+    if (en - st < 1800000) return Swal.fire('เวลาไม่ถูกต้อง', 'เวลา "ถึงวันที่" ต้องมากกว่าอย่างน้อย 30 นาที', 'error');
+
+    const payload = {
+      requester: document.getElementById('req_c').value,
+      group: document.getElementById('req_d').value,
+      start: document.getElementById('req_e').value,
+      end: document.getElementById('req_f').value,
+      subject: document.getElementById('req_g').value,
+      place: document.getElementById('req_h').value,
+      qty: document.getElementById('req_i').value,
+      include: document.getElementById('req_j').value,
+      detail: document.getElementById('req_k').value,
+      carType: document.getElementById('req_l').value
+    };
+
+    const res = await callAPI('requestCar', payload);
+    Swal.fire('สำเร็จ', `สร้างคำขอสำเร็จ ID: ${res.data.id}`, 'success');
+    e.target.reset();
+  });
+
+  // ================= โหลดข้อมูลตาราง =================
+  async function loadData() {
+    Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+      const res = await fetch(WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'getData' })
+      });
+      const json = await res.json();
+      globalData = json.data;
+      renderTables();
+      Swal.close();
+    } catch (err) {
+      Swal.fire('ข้อผิดพลาด', 'โหลดข้อมูลไม่สำเร็จ', 'error');
+    }
+  }
+
+  function formatDateUI(dateString) {
+    if (!dateString) return '-';
+    const d = new Date(dateString);
+    if (isNaN(d)) return dateString;
+    return d.toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+  }
+
+  function renderTables() {
+    // ล้าง DataTable เก่าก่อนสร้างใหม่
+    if ($.fn.DataTable.isDataTable('#tableAssign')) $('#tableAssign').DataTable().destroy();
+    if ($.fn.DataTable.isDataTable('#tableDriver')) $('#tableDriver').DataTable().destroy();
+    if ($.fn.DataTable.isDataTable('#tableReport')) $('#tableReport').DataTable().destroy();
+
+    const tbodyAssign = document.querySelector('#tableAssign tbody');
+    const tbodyDriver = document.querySelector('#tableDriver tbody');
+    const tbodyReport = document.querySelector('#tableReport tbody');
+    
+    tbodyAssign.innerHTML = ''; tbodyDriver.innerHTML = ''; tbodyReport.innerHTML = '';
+
+    globalData.forEach((row) => {
+      const id = row[0]; const start = formatDateUI(row[4]); const req = row[2];
+      const subj = row[6]; const place = row[7]; const cType = row[11];
+      const driver = row[12]; const plate = row[13]; const diffKm = row[19];
+      
+      let status = 'รอจัดรถ';
+      if (driver) status = diffKm !== '' ? 'เสร็จสิ้น' : 'รอขับรถ';
+
+      // 1. ตารางจัดรถ (เฉพาะที่ driver ว่าง)
+      if (!driver && id) {
+        tbodyAssign.innerHTML += `<tr>
+          <td>${id}</td><td>${start}</td><td>${req}</td><td>${subj}</td><td>${place}</td><td>${cType}</td>
+          <td><button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button></td>
+        </tr>`;
+      }
+
+      // 2. ตาราง พขร. (มีคนขับแล้ว แต่ยังไม่มีระยะทาง)
+      if (driver && diffKm === '' && id) {
+        tbodyDriver.innerHTML += `<tr>
+          <td>${id}</td><td>${start}</td><td>${req}</td><td>${place}</td><td>${driver}</td><td>${plate}</td>
+          <td><button class="btn btn-sm btn-info" onclick="openDriver('${id}')">บันทึกขับรถ</button></td>
+        </tr>`;
+      }
+
+      // 3. ตารางรวม
+      if (id) {
+        let badge = status === 'เสร็จสิ้น' ? 'success' : (status === 'รอจัดรถ' ? 'danger' : 'warning');
+        tbodyReport.innerHTML += `<tr>
+          <td>${id}</td><td><span class="badge bg-${badge}">${status}</span></td><td>${start}</td>
+          <td>${req}</td><td>${subj}</td><td>${place}</td><td>${driver || '-'}</td>
+          <td>${plate || '-'}</td><td>${diffKm !== '' ? diffKm + ' กม.' : '-'}</td>
+        </tr>`;
+      }
+    });
+
+    // เรียกใช้ DataTables
+    $('#tableAssign, #tableDriver, #tableReport').DataTable({ "language": { "url": "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
+  }
+
+  // ================= 2. จัดรถ =================
+  const modalAssign = new bootstrap.Modal(document.getElementById('modalAssign'));
+  function openAssign(id) {
+    document.getElementById('assign_id').value = id;
+    document.getElementById('assign_id_lbl').innerText = id;
+    document.getElementById('formAssign').reset();
+    modalAssign.show();
+  }
+
+  document.getElementById('formAssign').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      id: document.getElementById('assign_id').value,
+      driver: document.getElementById('assign_m').value,
+      plate: document.getElementById('assign_n').value,
+      model: document.getElementById('assign_o').value
+    };
+    await callAPI('assignCar', payload);
+    Swal.fire('สำเร็จ', 'จัดรถเรียบร้อย', 'success');
+    modalAssign.hide();
+    loadData(); // โหลดตารางใหม่
+  });
+
+  // ================= 3. รายงาน พขร. =================
+  const modalDriver = new bootstrap.Modal(document.getElementById('modalDriver'));
+  function openDriver(id) {
+    document.getElementById('driver_id').value = id;
+    document.getElementById('driver_id_lbl').innerText = id;
+    document.getElementById('formDriver').reset();
+    modalDriver.show();
+  }
+
+  // คำนวณผลต่าง กม. อัตโนมัติ
+  function calcKM() {
+    const start = parseFloat(document.getElementById('driver_r').value) || 0;
+    const end = parseFloat(document.getElementById('driver_s').value) || 0;
+    const diff = end - start;
+    document.getElementById('driver_t').value = diff;
+    if (diff < 0) {
+      document.getElementById('driver_t').classList.add('is-invalid');
+    } else {
+      document.getElementById('driver_t').classList.remove('is-invalid');
+    }
+  }
+  document.getElementById('driver_r').addEventListener('input', calcKM);
+  document.getElementById('driver_s').addEventListener('input', calcKM);
+
+  document.getElementById('formDriver').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const actSt = new Date(document.getElementById('driver_p').value);
+    const actEn = new Date(document.getElementById('driver_q').value);
+    const diffKm = parseFloat(document.getElementById('driver_t').value);
+
+    // เช็ค Validation
+    if (actEn - actSt < 1800000) return Swal.fire('เวลาไม่ถูกต้อง', '"ขับถึงจริง" ต้องมากกว่า "ขับจริง" อย่างน้อย 30 นาที', 'error');
+    if (diffKm < 0) return Swal.fire('ระยะทางผิดพลาด', 'เลขกิโลเมตรถึง ต้องมากกว่ากิโลเมตรเริ่ม', 'error');
+
+    const payload = {
+      id: document.getElementById('driver_id').value,
+      actStart: document.getElementById('driver_p').value,
+      actEnd: document.getElementById('driver_q').value,
+      startKm: document.getElementById('driver_r').value,
+      endKm: document.getElementById('driver_s').value,
+      diffKm: diffKm,
+      fuel: document.getElementById('driver_u').value,
+      cost: document.getElementById('driver_v').value
+    };
+
+    await callAPI('driverReport', payload);
+    Swal.fire('สำเร็จ', 'บันทึกรายงานการขับรถเรียบร้อย', 'success');
+    modalDriver.hide();
+    loadData(); // โหลดตารางใหม่
+  });
+
+</script>
+</body>
+</html>
