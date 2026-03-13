@@ -23,9 +23,9 @@
 
   <ul class="nav nav-pills justify-content-center mb-4" id="menuTabs">
     <li class="nav-item"><a class="nav-link active" onclick="switchPage('page-request')">📝 ขอใช้รถ</a></li>
-    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-assign')">🔑 จัดรถ</a></li>
-    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-driver')">👨‍✈️ รายงาน พขร.</a></li>
-    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-report')">📊 รายงานทั้งหมด</a></li>
+    <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-assign', this)">🔑 จัดรถ</a></li>
+    <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-driver', this)">👨‍✈️ รายงาน พขร.</a></li>
+    <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-report', this)">📊 รายงานทั้งหมด</a></li>
   </ul>
 
   <div id="page-request" class="page-section active">
@@ -80,7 +80,7 @@
       <h4 class="mb-3">รายการรอจัดรถ</h4>
       <div class="table-responsive">
         <table id="tableAssign" class="table table-striped w-100">
-          <thead><tr><th>จัดการ</th><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>เรื่อง</th><th>สถานที่</th><th>ประเภทรถ</th></tr></thead>>
+          <thead><tr><th>จัดการ</th><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>เรื่อง</th><th>สถานที่</th><th>ประเภทรถ</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -179,10 +179,9 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <div id="viewBody" class="row">
-          </div>
+        <div id="viewBody" class="row"></div>
       </div>
-      <<div class="modal-footer d-flex justify-content-between">
+      <div class="modal-footer d-flex justify-content-between">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
         <button type="button" class="btn btn-primary" onclick="printDoc()">🖨️ เปิดเอกสาร Google Doc</button>
       </div>
@@ -197,12 +196,13 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-  // *** ใส่ URL Web App ของคุณที่นี่ ***
-  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby0WBpXUV3OwYI8S8p9wJ97NZcheCStKDnWKhLI0Cb5EJoZgXX8xwprUbsoNj2xVsoPZQ/exec'; 
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzxm0TqS_TSeicnkLuCrJdOljrCY9IH3vZJtEddoBB_vEUg4U92Rnfww4ujDac3APy5aw/exec'; 
   
   let globalData = []; 
   let carList = []; 
-  let userList = []; // 🟢 เก็บตัวแปรไว้จับคู่
+  let userList = []; 
+  let unlockedAssign = false; 
+  let unlockedDriver = false; 
 
   async function loadOptions() {
     try {
@@ -210,18 +210,14 @@
       const json = await res.json();
       if (json.status === 'success') {
         const d = json.data;
-        
-        // 🟢 1. เติม DataList สำหรับ ผู้ขอ และเก็บข้อมูลลง userList
         userList = d.users;
         const listReqC = document.getElementById('listReqC');
         listReqC.innerHTML = '';
         userList.forEach(u => listReqC.innerHTML += `<option value="${u.name}">`);
 
-        // 2. เติม Select ทั่วไป
         populateSelect('assign_m', d.drivers, 'เลือกผู้ขับรถ');
         populateSelect('filterDriver', d.drivers, '-- กรองผู้ขับรถทั้งหมด --'); 
         
-        // 3. จัดการรถ
         carList = d.cars;
         const plateSelect = document.getElementById('assign_n');
         plateSelect.innerHTML = '<option value="" disabled selected>เลือกทะเบียนรถ</option>';
@@ -232,13 +228,12 @@
     }
   }
 
-  // 🟢 เพิ่มตัวดักจับ (Event Listener) เมื่อเลือกชื่อผู้ขอ ให้ดึงกลุ่มงานมาใส่ทันที
   document.getElementById('req_c').addEventListener('input', function() {
      const selectedUser = userList.find(u => u.name === this.value);
      if(selectedUser) {
          document.getElementById('req_d').value = selectedUser.group;
      } else {
-         document.getElementById('req_d').value = ''; // เคลียร์ค่าถ้าลบชื่อออก
+         document.getElementById('req_d').value = ''; 
      }
   });
 
@@ -255,30 +250,32 @@
 
   window.onload = loadOptions;
 
-let unlockedAssign = false; // สถานะปลดล็อกหน้าจัดรถ
-  let unlockedDriver = false; // สถานะปลดล็อกหน้า พขร.
+  function switchPage(pageId) {
+    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+    document.getElementById(pageId).classList.add('active');
+    event.target.classList.add('active');
+    if (pageId !== 'page-request') loadData();
+  }
 
   async function checkLoginAndSwitch(pageId, tabElement) {
-    // กั้นหน้า จัดรถ (รหัส 11278)
     if (pageId === 'page-assign' && !unlockedAssign) {
       const { value: pass } = await Swal.fire({ title: '🔑 ปลดล็อกหน้าจัดรถ', input: 'password', inputPlaceholder: 'ใส่รหัสผ่าน...', showCancelButton: true });
       if (pass === '11278') { unlockedAssign = true; Swal.fire('สำเร็จ', 'ปลดล็อกเรียบร้อย', 'success'); } 
       else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง!', 'error'); return; }
     }
-    // กั้นหน้า รายงาน พขร. (รหัส 1234)
     if (pageId === 'page-driver' && !unlockedDriver) {
       const { value: pass } = await Swal.fire({ title: '👨‍✈️ ปลดล็อกหน้า พขร.', input: 'password', inputPlaceholder: 'ใส่รหัสผ่าน...', showCancelButton: true });
       if (pass === '1234') { unlockedDriver = true; Swal.fire('สำเร็จ', 'ปลดล็อกเรียบร้อย', 'success'); } 
       else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง!', 'error'); return; }
     }
 
-    // สลับหน้าจอเมื่อผ่านเงื่อนไขแล้ว
     document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
     document.getElementById(pageId).classList.add('active');
     if (tabElement) tabElement.classList.add('active');
     
-    if (pageId !== 'page-request') loadData(); // หน้าขอใช้รถไม่ต้องโหลดตาราง
+    if (pageId !== 'page-request') loadData();
   }
 
   async function callAPI(action, payload) {
@@ -344,7 +341,7 @@ let unlockedAssign = false; // สถานะปลดล็อกหน้า�
       const id = row[0]; const start = formatDateUI(row[4]); const end = formatDateUI(row[5]);
       const req = row[2]; const subj = row[6]; const place = row[7]; const cType = row[11];
       const driver = row[12]; const plate = row[13]; const diffKm = row[19];
-      const printCount = parseInt(row[23]) || 0; // 🟢 จำนวนครั้งที่พิมพ์
+      const printCount = parseInt(row[23]) || 0; 
       
       let status = 'รอจัดรถ'; let badge = 'danger';
       
@@ -354,7 +351,7 @@ let unlockedAssign = false; // สถานะปลดล็อกหน้า�
         else { status = 'รอขับรถ'; badge = 'warning'; }
       }
 
-      // 🟢 วาดตารางจัดรถ (ปุ่มอยู่หน้า)
+      // วาดตารางจัดรถ (ปุ่มอยู่หน้า)
       if (!driver && id) {
         tbodyA.innerHTML += `<tr>
           <td><button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button></td>
@@ -362,7 +359,7 @@ let unlockedAssign = false; // สถานะปลดล็อกหน้า�
         </tr>`;
       }
 
-      // 🟢 วาดตาราง พขร. (ปุ่มอยู่หน้า)
+      // วาดตาราง พขร. (ปุ่มอยู่หน้า)
       if (driver && diffKm === '' && id && !driver.includes('ยกเลิก')) {
         tbodyD.innerHTML += `<tr>
           <td><button class="btn btn-sm btn-info text-white" onclick="openDriver('${id}')">บันทึกขับรถ</button></td>
@@ -370,7 +367,7 @@ let unlockedAssign = false; // สถานะปลดล็อกหน้า�
         </tr>`;
       }
 
-      // 🟢 วาดตารางรายงานรวม (เพิ่มป้ายสถานะการพิมพ์)
+      // วาดตารางรายงานรวม
       if (id) {
         let printBadge = printCount > 0 ? ` <span class="badge bg-info text-dark">พิมพ์ ${printCount}</span>` : '';
         tbodyR.innerHTML += `<tr>
@@ -385,14 +382,7 @@ let unlockedAssign = false; // สถานะปลดล็อกหน้า�
     $('#tableAssign').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
     $('#tableReport').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
     const tableDr = $('#tableDriver').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
-    $('#filterDriver').off('change').on('change', function() { tableDr.column(6).search(this.value).draw(); }); // แก้ column search เนื่องจากย้ายปุ่มไปหน้า
-  }
-    
-    // 🟢 วาดตารางคนขับ พร้อมเชื่อม Dropdown Filter (ค้นหาคอลัมน์ที่ 5 คือ ผู้ขับรถ)
-    const tableDr = $('#tableDriver').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
-    $('#filterDriver').on('change', function() {
-       tableDr.column(5).search(this.value).draw();
-    });
+    $('#filterDriver').off('change').on('change', function() { tableDr.column(6).search(this.value).draw(); }); 
   }
 
   // --- จัดรถ ---
@@ -444,7 +434,6 @@ let unlockedAssign = false; // สถานะปลดล็อกหน้า�
     const row = globalData.find(r => r[0] == id);
     if(!row) return;
 
-    // ยัดข้อมูลลง HTML
     document.getElementById('viewBody').innerHTML = `
       <div class="col-md-6 mb-2"><b>ผู้ขอ:</b> ${row[2] || '-'} (${row[3] || '-'})</div>
       <div class="col-md-6 mb-2"><b>ประเภทรถ:</b> ${row[11] || '-'}</div>
@@ -462,7 +451,7 @@ let unlockedAssign = false; // สถานะปลดล็อกหน้า�
     modalView.show();
   }
 
-async function printDoc() {
+  async function printDoc() {
     const id = document.getElementById('view_id_lbl').innerText;
     Swal.fire({ title: 'กำลังดึงข้อมูลลงเอกสาร...', text: 'รอประมาณ 5-10 วินาทีครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
@@ -471,9 +460,7 @@ async function printDoc() {
       if (data.status === 'success') {
         Swal.fire('สำเร็จ!', 'สร้างเอกสาร Google Doc เรียบร้อย', 'success');
         window.open(data.data.url, '_blank'); 
-        
-        loadData(); // 🟢 เพิ่มการโหลดข้อมูลใหม่ทันที เพื่อให้ขึ้นสถานะ พิมพ์ 1
-        
+        loadData(); 
       } else throw new Error(data.message);
     } catch (err) { Swal.fire('ข้อผิดพลาด', err.message, 'error'); }
   }
