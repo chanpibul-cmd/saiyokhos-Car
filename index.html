@@ -80,7 +80,7 @@
       <h4 class="mb-3">รายการรอจัดรถ</h4>
       <div class="table-responsive">
         <table id="tableAssign" class="table table-striped w-100">
-          <thead><tr><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>เรื่อง</th><th>สถานที่</th><th>ประเภทรถ</th><th>จัดการ</th></tr></thead>
+          <thead><tr><th>จัดการ</th><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>เรื่อง</th><th>สถานที่</th><th>ประเภทรถ</th></tr></thead>>
           <tbody></tbody>
         </table>
       </div>
@@ -97,7 +97,7 @@
       </div>
       <div class="table-responsive">
         <table id="tableDriver" class="table table-striped w-100">
-          <thead><tr><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>สถานที่</th><th>ผู้ขับรถ</th><th>ทะเบียน</th><th>จัดการ</th></tr></thead>
+          <thead><tr><th>จัดการ</th><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>สถานที่</th><th>ผู้ขับรถ</th><th>ทะเบียน</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -255,12 +255,30 @@
 
   window.onload = loadOptions;
 
-  function switchPage(pageId) {
+let unlockedAssign = false; // สถานะปลดล็อกหน้าจัดรถ
+  let unlockedDriver = false; // สถานะปลดล็อกหน้า พขร.
+
+  async function checkLoginAndSwitch(pageId, tabElement) {
+    // กั้นหน้า จัดรถ (รหัส 11278)
+    if (pageId === 'page-assign' && !unlockedAssign) {
+      const { value: pass } = await Swal.fire({ title: '🔑 ปลดล็อกหน้าจัดรถ', input: 'password', inputPlaceholder: 'ใส่รหัสผ่าน...', showCancelButton: true });
+      if (pass === '11278') { unlockedAssign = true; Swal.fire('สำเร็จ', 'ปลดล็อกเรียบร้อย', 'success'); } 
+      else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง!', 'error'); return; }
+    }
+    // กั้นหน้า รายงาน พขร. (รหัส 1234)
+    if (pageId === 'page-driver' && !unlockedDriver) {
+      const { value: pass } = await Swal.fire({ title: '👨‍✈️ ปลดล็อกหน้า พขร.', input: 'password', inputPlaceholder: 'ใส่รหัสผ่าน...', showCancelButton: true });
+      if (pass === '1234') { unlockedDriver = true; Swal.fire('สำเร็จ', 'ปลดล็อกเรียบร้อย', 'success'); } 
+      else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง!', 'error'); return; }
+    }
+
+    // สลับหน้าจอเมื่อผ่านเงื่อนไขแล้ว
     document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
     document.getElementById(pageId).classList.add('active');
-    event.target.classList.add('active');
-    if (pageId !== 'page-request') loadData();
+    if (tabElement) tabElement.classList.add('active');
+    
+    if (pageId !== 'page-request') loadData(); // หน้าขอใช้รถไม่ต้องโหลดตาราง
   }
 
   async function callAPI(action, payload) {
@@ -326,31 +344,38 @@
       const id = row[0]; const start = formatDateUI(row[4]); const end = formatDateUI(row[5]);
       const req = row[2]; const subj = row[6]; const place = row[7]; const cType = row[11];
       const driver = row[12]; const plate = row[13]; const diffKm = row[19];
+      const printCount = parseInt(row[23]) || 0; // 🟢 จำนวนครั้งที่พิมพ์
       
       let status = 'รอจัดรถ'; let badge = 'danger';
       
-      // 🟢 เช็คเงื่อนไข "ยกเลิก"
       if (driver) {
         if (driver.includes('ยกเลิก')) { status = 'ยกเลิก (เสร็จสิ้น)'; badge = 'secondary'; }
         else if (diffKm !== '') { status = 'เสร็จสิ้น'; badge = 'success'; }
         else { status = 'รอขับรถ'; badge = 'warning'; }
       }
 
+      // 🟢 วาดตารางจัดรถ (ปุ่มอยู่หน้า)
       if (!driver && id) {
-        tbodyA.innerHTML += `<tr><td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${subj}</td><td>${place}</td><td>${cType}</td>
-        <td><button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button></td></tr>`;
+        tbodyA.innerHTML += `<tr>
+          <td><button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button></td>
+          <td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${subj}</td><td>${place}</td><td>${cType}</td>
+        </tr>`;
       }
 
-      // 🟢 ไม่แสดงรายการที่ "ยกเลิก" ในหน้ารอขับรถ
+      // 🟢 วาดตาราง พขร. (ปุ่มอยู่หน้า)
       if (driver && diffKm === '' && id && !driver.includes('ยกเลิก')) {
-        tbodyD.innerHTML += `<tr><td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver}</td><td>${plate}</td>
-        <td><button class="btn btn-sm btn-info text-white" onclick="openDriver('${id}')">บันทึกขับรถ</button></td></tr>`;
+        tbodyD.innerHTML += `<tr>
+          <td><button class="btn btn-sm btn-info text-white" onclick="openDriver('${id}')">บันทึกขับรถ</button></td>
+          <td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver}</td><td>${plate}</td>
+        </tr>`;
       }
 
+      // 🟢 วาดตารางรายงานรวม (เพิ่มป้ายสถานะการพิมพ์)
       if (id) {
+        let printBadge = printCount > 0 ? ` <span class="badge bg-info text-dark">พิมพ์ ${printCount}</span>` : '';
         tbodyR.innerHTML += `<tr>
           <td><button class="btn btn-sm btn-outline-primary" onclick="openView('${id}')">🔍 ข้อมูล</button></td>
-          <td>${id}</td><td><span class="badge bg-${badge}">${status}</span></td><td>${start}</td><td class="text-danger">${end}</td>
+          <td>${id}</td><td><span class="badge bg-${badge}">${status}</span>${printBadge}</td><td>${start}</td><td class="text-danger">${end}</td>
           <td>${req}</td><td>${place}</td><td>${driver || '-'}</td>
           <td>${plate || '-'}</td><td>${diffKm !== '' ? diffKm + ' กม.' : '-'}</td>
         </tr>`;
@@ -359,6 +384,9 @@
 
     $('#tableAssign').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
     $('#tableReport').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
+    const tableDr = $('#tableDriver').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
+    $('#filterDriver').off('change').on('change', function() { tableDr.column(6).search(this.value).draw(); }); // แก้ column search เนื่องจากย้ายปุ่มไปหน้า
+  }
     
     // 🟢 วาดตารางคนขับ พร้อมเชื่อม Dropdown Filter (ค้นหาคอลัมน์ที่ 5 คือ ผู้ขับรถ)
     const tableDr = $('#tableDriver').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
@@ -434,20 +462,21 @@
     modalView.show();
   }
 
-  // ส่งคำสั่งสร้าง PDF
-  async function printDoc() {
+async function printDoc() {
     const id = document.getElementById('view_id_lbl').innerText;
-    Swal.fire({ title: 'กำลังดึงข้อมูลลง PDF...', text: 'รอประมาณ 5-10 วินาทีครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'กำลังดึงข้อมูลลงเอกสาร...', text: 'รอประมาณ 5-10 วินาทีครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
       const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'printDoc', payload: { id: id } }) });
       const data = await res.json();
       if (data.status === 'success') {
-        Swal.fire('สำเร็จ!', 'สร้างเอกสาร PDF เรียบร้อย', 'success');
-        window.open(data.data.url, '_blank'); // เด้งเปิด PDF หน้าต่างใหม่
+        Swal.fire('สำเร็จ!', 'สร้างเอกสาร Google Doc เรียบร้อย', 'success');
+        window.open(data.data.url, '_blank'); 
+        
+        loadData(); // 🟢 เพิ่มการโหลดข้อมูลใหม่ทันที เพื่อให้ขึ้นสถานะ พิมพ์ 1
+        
       } else throw new Error(data.message);
     } catch (err) { Swal.fire('ข้อผิดพลาด', err.message, 'error'); }
   }
-
 </script>
 </body>
 </html>
