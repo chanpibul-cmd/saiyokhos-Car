@@ -34,27 +34,27 @@
       <form id="formRequest">
         <div class="row mb-3">
           <div class="col-md-6">
-            <label>ผู้ขอ (C)</label>
+            <label>ผู้ขอ</label>
             <input list="listReqC" id="req_c" class="form-control" placeholder="พิมพ์เพื่อค้นหา..." required>
             <datalist id="listReqC"></datalist>
           </div>
           <div class="col-md-6">
-            <label>กลุ่มงาน (D)</label>
+            <label>กลุ่มงาน</label>
             <input type="text" id="req_d" class="form-control" readonly placeholder="จะขึ้นอัตโนมัติเมื่อเลือกผู้ขอ">
           </div>
         </div>
         <div class="row mb-3">
-          <div class="col-md-6"><label>ขอวันที่ (E)</label><input type="datetime-local" id="req_e" class="form-control" required></div>
-          <div class="col-md-6"><label>ถึงวันที่ (F)</label><input type="datetime-local" id="req_f" class="form-control" required></div>
+          <div class="col-md-6"><label>ขอวันที่</label><input type="datetime-local" id="req_e" class="form-control" required></div>
+          <div class="col-md-6"><label>ถึงวันที่</label><input type="datetime-local" id="req_f" class="form-control" required></div>
         </div>
-        <div class="mb-3"><label>เรื่อง (G)</label><input type="text" id="req_g" class="form-control" required></div>
-        <div class="mb-3"><label>สถานที่ (H)</label><input type="text" id="req_h" class="form-control" required></div>
+        <div class="mb-3"><label>เรื่อง</label><input type="text" id="req_g" class="form-control" required></div>
+        <div class="mb-3"><label>สถานที่</label><input type="text" id="req_h" class="form-control" required></div>
         <div class="row mb-3">
-          <div class="col-md-3"><label>จำนวน (I)</label><input type="number" id="req_i" class="form-control" min="1" required></div>
-          <div class="col-md-9"><label>ได้แก่ (J)</label><input type="text" id="req_j" class="form-control" required></div>
+          <div class="col-md-3"><label>จำนวน</label><input type="number" id="req_i" class="form-control" min="1" required></div>
+          <div class="col-md-9"><label>ได้แก่</label><input type="text" id="req_j" class="form-control" required></div>
         </div>
-        <div class="mb-3"><label>รายละเอียดเพิ่มเติม (K)</label><textarea id="req_k" class="form-control" rows="2"></textarea></div>
-        <div class="mb-4"><label>ประเภทการใช้รถ (L)</label>
+        <div class="mb-3"><label>รายละเอียดเพิ่มเติม</label><textarea id="req_k" class="form-control" rows="2"></textarea></div>
+        <div class="mb-4"><label>ประเภทการใช้รถ</label>
           <select id="req_l" class="form-select" required>
             <option value="" disabled selected>เลือกประเภทการใช้รถ...</option>
             <option value="ประชุม/อบรม/ในจังหวัด">ประชุม/อบรม/ในจังหวัด</option>
@@ -126,15 +126,15 @@
         <form id="formAssign">
           <input type="hidden" id="assign_id">
           <div class="mb-3">
-            <label>ผู้ขับรถ (M)</label>
+            <label>ผู้ขับรถ</label>
             <select id="assign_m" class="form-select" required><option value="" disabled selected>โหลดข้อมูล...</option></select>
           </div>
           <div class="mb-3">
-            <label>ทะเบียน (N)</label>
+            <label>ทะเบียน</label>
             <select id="assign_n" class="form-select" required><option value="" disabled selected>โหลดข้อมูล...</option></select>
           </div>
           <div class="mb-3">
-            <label>รุ่น (O)</label>
+            <label>รุ่น</label>
             <input type="text" id="assign_o" class="form-control" readonly placeholder="รุ่นรถจะขึ้นอัตโนมัติ">
           </div>
           <button type="submit" class="btn btn-success w-100">บันทึกการจัดรถ</button>
@@ -152,17 +152,17 @@
         <form id="formDriver">
           <input type="hidden" id="driver_id">
           <div class="row mb-3">
-            <div class="col-md-6"><label>ขับจริง (P)</label><input type="datetime-local" id="driver_p" class="form-control" required></div>
-            <div class="col-md-6"><label>ขับถึงจริง (Q)</label><input type="datetime-local" id="driver_q" class="form-control" required></div>
+            <div class="col-md-6"><label>ขับจริง</label><input type="datetime-local" id="driver_p" class="form-control" required></div>
+            <div class="col-md-6"><label>ขับถึงจริง</label><input type="datetime-local" id="driver_q" class="form-control" required></div>
           </div>
           <div class="row mb-3">
-            <div class="col-md-4"><label>กม. เริ่ม (R)</label><input type="number" id="driver_r" class="form-control" required></div>
-            <div class="col-md-4"><label>กม. ถึง (S)</label><input type="number" id="driver_s" class="form-control" required></div>
-            <div class="col-md-4"><label>ผลต่าง (T)</label><input type="number" id="driver_t" class="form-control" readonly></div>
+            <div class="col-md-4"><label>กม. เริ่ม</label><input type="number" id="driver_r" class="form-control" required></div>
+            <div class="col-md-4"><label>กม. ถึง</label><input type="number" id="driver_s" class="form-control" required></div>
+            <div class="col-md-4"><label>ผลต่าง</label><input type="number" id="driver_t" class="form-control" readonly></div>
           </div>
           <div class="row mb-3">
-            <div class="col-md-6"><label>เติมน้ำมัน (ลิตร) (U)</label><input type="number" step="0.01" id="driver_u" class="form-control"></div>
-            <div class="col-md-6"><label>เป็นเงิน (บาท) (V)</label><input type="number" step="0.01" id="driver_v" class="form-control"></div>
+            <div class="col-md-6"><label>เติมน้ำมัน (ลิตร)</label><input type="number" step="0.01" id="driver_u" class="form-control"></div>
+            <div class="col-md-6"><label>เป็นเงิน (บาท)</label><input type="number" step="0.01" id="driver_v" class="form-control"></div>
           </div>
           <button type="submit" class="btn btn-success w-100">บันทึกรายงาน</button>
         </form>
