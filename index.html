@@ -23,19 +23,21 @@
   <h2 class="text-center mb-4 text-primary">🚙 ระบบบริหารจัดการรถยนต์</h2>
 
   <ul class="nav nav-pills justify-content-center mb-4" id="menuTabs">
-    <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-calendar', this)">🗓️ ปฏิทิน</a></li>
-    <li class="nav-item"><a class="nav-link active" onclick="switchPage('page-request')">📝 ขอใช้รถ</a></li>
+    <li class="nav-item"><a class="nav-link active" onclick="switchPage('page-calendar', this)">🗓️ ปฏิทิน</a></li>
+    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-request', this)">📝 ขอใช้รถ</a></li>
     <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-assign', this)">🔑 จัดรถ</a></li>
     <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-driver', this)">👨‍✈️ รายงาน พขร.</a></li>
     <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-report', this)">📊 รายงานทั้งหมด</a></li>
   </ul>
-<div id="page-calendar" class="page-section">
+
+  <div id="page-calendar" class="page-section active">
     <div class="card p-4">
       <h4 class="mb-3">ตารางคิวการใช้รถ</h4>
       <div id="calendar"></div>
     </div>
   </div>
-  <div id="page-request" class="page-section active">
+
+  <div id="page-request" class="page-section">
     <div class="card p-4 mx-auto" style="max-width: 800px;">
       <h4 class="mb-4">แบบฟอร์มขอใช้รถ</h4>
       <form id="formRequest">
@@ -203,6 +205,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
+  // URL ของ Web App
   const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzxm0TqS_TSeicnkLuCrJdOljrCY9IH3vZJtEddoBB_vEUg4U92Rnfww4ujDac3APy5aw/exec'; 
   
   let globalData = []; 
@@ -210,6 +213,7 @@
   let userList = []; 
   let unlockedAssign = false; 
   let unlockedDriver = false; 
+  let calendar; 
 
   async function loadOptions() {
     try {
@@ -230,9 +234,7 @@
         plateSelect.innerHTML = '<option value="" disabled selected>เลือกทะเบียนรถ</option>';
         carList.forEach(c => plateSelect.innerHTML += `<option value="${c.plate}">${c.plate}</option>`);
       }
-    } catch(err) {
-      console.error(err);
-    }
+    } catch(err) { console.error(err); }
   }
 
   document.getElementById('req_c').addEventListener('input', function() {
@@ -255,20 +257,27 @@
      if(selectedCar) document.getElementById('assign_o').value = selectedCar.model;
   });
 
-  window.onload = loadOptions;
+  // 🟢 สั่งโหลดข้อมูลทันทีที่เปิดเว็บ (เพื่อดึงตัวเลือกและวาดปฏิทิน)
+  window.onload = () => {
+    loadOptions();
+    loadData(); 
+  };
 
-  function switchPage(pageId) {
+  // 🟢 แก้ไขฟังก์ชันสลับหน้าให้สมบูรณ์ (เติมวงเล็บที่ขาดไป)
+  function switchPage(pageId, tabElement) {
     document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
     document.getElementById(pageId).classList.add('active');
     if (tabElement) tabElement.classList.add('active');
     
+    // โหลดข้อมูลเมื่อเข้าหน้าอื่นที่ไม่ใช่ขอใช้รถ
     if (pageId !== 'page-request') loadData();
 
-    // 🟢 ถ้าเปิดหน้าปฏิทิน ให้รีเฟรชขนาดภาพให้พอดีกรอบ
+    // ถ้าย้ายมาหน้าปฏิทิน สั่ง Render ขนาดให้พอดีจอ
     if (pageId === 'page-calendar' && calendar) {
       setTimeout(() => calendar.render(), 100);
     }
+  } // <-- 🟢 เพิ่มวงเล็บปิดฟังก์ชันที่หายไป
 
   async function checkLoginAndSwitch(pageId, tabElement) {
     if (pageId === 'page-assign' && !unlockedAssign) {
@@ -282,12 +291,8 @@
       else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง!', 'error'); return; }
     }
 
-    document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-    document.getElementById(pageId).classList.add('active');
-    if (tabElement) tabElement.classList.add('active');
-    
-    if (pageId !== 'page-request') loadData();
+    // เรียกใช้ฟังก์ชันสลับหน้าปกติหลังจากปลดล็อกผ่าน
+    switchPage(pageId, tabElement);
   }
 
   async function callAPI(action, payload) {
@@ -303,7 +308,6 @@
     }
   }
 
-  // --- ขอใช้รถ ---
   document.getElementById('formRequest').addEventListener('submit', async (e) => {
     e.preventDefault();
     const st = new Date(document.getElementById('req_e').value);
@@ -322,17 +326,23 @@
     e.target.reset();
   });
 
-  // --- โหลดและวาดตาราง ---
   async function loadData() {
-    Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    // โชว์ Loading ถ้าหน้าจอไม่ได้อยู่ที่ฟอร์มขอใช้รถ 
+    const isRequestPage = document.getElementById('page-request').classList.contains('active');
+    if (!isRequestPage) Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    
     try {
       const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
       const json = await res.json();
       globalData = json.data;
+      
       renderTables();
-      renderCalendar();
-      Swal.close();
-    } catch (err) { Swal.fire('ข้อผิดพลาด', 'โหลดข้อมูลไม่สำเร็จ', 'error'); }
+      renderCalendar(); // อัปเดตข้อมูลปฏิทิน
+      
+      if (!isRequestPage) Swal.close();
+    } catch (err) { 
+      if (!isRequestPage) Swal.fire('ข้อผิดพลาด', 'โหลดข้อมูลไม่สำเร็จ', 'error'); 
+    }
   }
 
   function formatDateUI(dStr) {
@@ -364,7 +374,6 @@
         else { status = 'รอขับรถ'; badge = 'warning'; }
       }
 
-      // วาดตารางจัดรถ (ปุ่มอยู่หน้า)
       if (!driver && id) {
         tbodyA.innerHTML += `<tr>
           <td><button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button></td>
@@ -372,7 +381,6 @@
         </tr>`;
       }
 
-      // วาดตาราง พขร. (ปุ่มอยู่หน้า)
       if (driver && diffKm === '' && id && !driver.includes('ยกเลิก')) {
         tbodyD.innerHTML += `<tr>
           <td><button class="btn btn-sm btn-info text-white" onclick="openDriver('${id}')">บันทึกขับรถ</button></td>
@@ -380,7 +388,6 @@
         </tr>`;
       }
 
-      // วาดตารางรายงานรวม
       if (id) {
         let printBadge = printCount > 0 ? ` <span class="badge bg-info text-dark">พิมพ์ ${printCount}</span>` : '';
         tbodyR.innerHTML += `<tr>
@@ -398,7 +405,6 @@
     $('#filterDriver').off('change').on('change', function() { tableDr.column(6).search(this.value).draw(); }); 
   }
 
-  // --- จัดรถ ---
   const modalAssign = new bootstrap.Modal(document.getElementById('modalAssign'));
   function openAssign(id) {
     document.getElementById('assign_id').value = id; document.getElementById('assign_id_lbl').innerText = id;
@@ -410,7 +416,6 @@
     Swal.fire('สำเร็จ', 'จัดรถเรียบร้อย', 'success'); modalAssign.hide(); loadData(); 
   });
 
-  // --- พขร ---
   const modalDriver = new bootstrap.Modal(document.getElementById('modalDriver'));
   function openDriver(id) {
     document.getElementById('driver_id').value = id; document.getElementById('driver_id_lbl').innerText = id;
@@ -440,7 +445,6 @@
     Swal.fire('สำเร็จ', 'บันทึกรายงานการขับรถเรียบร้อย', 'success'); modalDriver.hide(); loadData(); 
   });
 
-  // --- 🟢 ดูข้อมูลทั้งหมด & พิมพ์ ---
   const modalView = new bootstrap.Modal(document.getElementById('modalView'));
   function openView(id) {
     document.getElementById('view_id_lbl').innerText = id;
@@ -477,17 +481,11 @@
       } else throw new Error(data.message);
     } catch (err) { Swal.fire('ข้อผิดพลาด', err.message, 'error'); }
   }
-  let calendar; // ตัวแปรเก็บปฏิทิน
 
   function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
-    
-    // ล้างปฏิทินเก่าถ้าเคยสร้างไว้แล้ว
-    if (calendar) {
-      calendar.destroy();
-    }
+    if (calendar) calendar.destroy();
 
-    // แปลงข้อมูล globalData ให้กลายเป็นรูปแบบที่ปฏิทินเข้าใจ
     const events = globalData.map(row => {
       const id = row[0];
       const start = row[4];
@@ -497,37 +495,34 @@
       const driver = row[12];
       const diffKm = row[19];
 
-      // กำหนดสีตามสถานะ
-      let color = '#dc3545'; // สีแดง (รอจัดรถ)
+      let color = '#dc3545'; // รอจัดรถ
       if (driver) {
-        if (driver.includes('ยกเลิก')) color = '#6c757d'; // สีเทา (ยกเลิก)
-        else if (diffKm !== '') color = '#198754'; // สีเขียว (เสร็จสิ้น)
-        else color = '#ffc107'; // สีเหลือง (รอขับ)
+        if (driver.includes('ยกเลิก')) color = '#6c757d'; 
+        else if (diffKm !== '') color = '#198754'; 
+        else color = '#ffc107'; 
       }
 
       return {
         id: id,
-        title: `${place} ${plate}`, // ข้อความที่จะโชว์บนปฏิทิน
+        title: `${place} ${plate}`,
         start: start,
         end: end,
         backgroundColor: color,
         borderColor: color,
-        textColor: color === '#ffc107' ? '#000' : '#fff' // ถ้าสีเหลืองให้ตัวหนังสือสีดำ
+        textColor: color === '#ffc107' ? '#000' : '#fff' 
       };
-    }).filter(event => event.id); // กรองเอาเฉพาะอันที่มี ID
+    }).filter(event => event.id);
 
-    // สร้างปฏิทิน
     calendar = new FullCalendar.Calendar(calendarEl, {
-      initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth', // มือถือโชว์เป็นลิสต์ คอมโชว์เป็นเดือน
+      initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth', 
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',
         right: 'dayGridMonth,timeGridWeek,listWeek'
       },
-      locale: 'th', // ภาษาไทย
+      locale: 'th', 
       events: events,
       eventClick: function(info) {
-        // 🟢 เมื่อคลิกที่รายการในปฏิทิน ให้เปิด Modal ดูข้อมูล
         openView(info.event.id);
       }
     });
