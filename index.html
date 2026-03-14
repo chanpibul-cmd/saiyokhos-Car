@@ -4,11 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ระบบจัดการรถยนต์</title>
+  
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
   <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+  
   <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
-  <style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <style>
     body { background-color: #f4f7f6; font-family: 'Sarabun', sans-serif; }
     .nav-pills .nav-link.active { background-color: #0d6efd; }
     .nav-link { cursor: pointer; color: #495057; font-weight: bold; }
@@ -23,21 +25,15 @@
   <h2 class="text-center mb-4 text-primary">🚙 ระบบบริหารจัดการรถยนต์</h2>
 
   <ul class="nav nav-pills justify-content-center mb-4" id="menuTabs">
-    <li class="nav-item"><a class="nav-link active" onclick="switchPage('page-calendar', this)">🗓️ ปฏิทิน</a></li>
-    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-request', this)">📝 ขอใช้รถ</a></li>
+    <li class="nav-item"><a class="nav-link active" onclick="switchPage('page-request', this)">📝 ขอใช้รถ</a></li>
+    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-calendar', this)">🗓️ ปฏิทิน</a></li>
     <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-assign', this)">🔑 จัดรถ</a></li>
     <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-driver', this)">👨‍✈️ รายงาน พขร.</a></li>
     <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-report', this)">📊 รายงานทั้งหมด</a></li>
+    <li class="nav-item"><a class="nav-link" onclick="switchPage('page-dashboard', this)">📈 แดชบอร์ด</a></li>
   </ul>
 
-  <div id="page-calendar" class="page-section active">
-    <div class="card p-4">
-      <h4 class="mb-3">ตารางคิวการใช้รถ</h4>
-      <div id="calendar"></div>
-    </div>
-  </div>
-
-  <div id="page-request" class="page-section">
+  <div id="page-request" class="page-section active">
     <div class="card p-4 mx-auto" style="max-width: 800px;">
       <h4 class="mb-4">แบบฟอร์มขอใช้รถ</h4>
       <form id="formRequest">
@@ -84,6 +80,13 @@
     </div>
   </div>
 
+  <div id="page-calendar" class="page-section">
+    <div class="card p-4">
+      <h4 class="mb-3">ตารางคิวการใช้รถ</h4>
+      <div id="calendar"></div>
+    </div>
+  </div>
+
   <div id="page-assign" class="page-section">
     <div class="card p-4">
       <h4 class="mb-3">รายการรอจัดรถ</h4>
@@ -121,6 +124,57 @@
           <thead><tr><th>ดูข้อมูล</th><th>ID</th><th>สถานะ</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>สถานที่</th><th>คนขับ</th><th>ทะเบียน</th><th>กม.ไป-กลับ</th></tr></thead>
           <tbody></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-dashboard" class="page-section">
+    <div class="card p-4">
+      <h4 class="mb-3 text-primary">📈 แดชบอร์ดสรุปข้อมูลการใช้รถ</h4>
+      
+      <div class="row align-items-end mb-4 bg-light p-3 rounded shadow-sm">
+        <div class="col-md-3 mb-2 mb-md-0">
+          <label class="form-label text-muted">รูปแบบการดูข้อมูล:</label>
+          <select id="dashFilterType" class="form-select" onchange="toggleDashFilters()">
+            <option value="all">ดูข้อมูลทั้งหมด</option>
+            <option value="date">ระบุช่วงวันที่</option>
+            <option value="month">รายเดือน</option>
+            <option value="fy">ปีงบประมาณ</option>
+          </select>
+        </div>
+        
+        <div class="col-md-7 mb-2 mb-md-0" id="dashFilterInputs">
+          <div id="f-date" style="display:none;" class="row">
+            <div class="col-6"><label class="form-label text-muted">ตั้งแต่วันที่</label><input type="date" id="dashStartDate" class="form-control"></div>
+            <div class="col-6"><label class="form-label text-muted">ถึงวันที่</label><input type="date" id="dashEndDate" class="form-control"></div>
+          </div>
+          <div id="f-month" style="display:none;">
+            <label class="form-label text-muted">เลือกเดือน-ปี</label><input type="month" id="dashMonth" class="form-control">
+          </div>
+          <div id="f-fy" style="display:none;">
+            <label class="form-label text-muted">เลือกปีงบประมาณ (พ.ศ.)</label>
+            <select id="dashFY" class="form-select"></select>
+          </div>
+        </div>
+        
+        <div class="col-md-2">
+          <button class="btn btn-primary w-100" onclick="updateDashboard()">🔍 กรองข้อมูล</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-12 mb-4">
+          <div class="card p-3 shadow-sm border-0"><canvas id="chartDaily" height="80"></canvas></div>
+        </div>
+        <div class="col-md-4 mb-4">
+          <div class="card p-3 shadow-sm border-0"><canvas id="chartCarCount"></canvas></div>
+        </div>
+        <div class="col-md-4 mb-4">
+          <div class="card p-3 shadow-sm border-0"><canvas id="chartDriverCount"></canvas></div>
+        </div>
+        <div class="col-md-4 mb-4">
+          <div class="card p-3 shadow-sm border-0"><canvas id="chartCarKm"></canvas></div>
+        </div>
       </div>
     </div>
   </div>
@@ -192,7 +246,7 @@
       </div>
       <div class="modal-footer d-flex justify-content-between">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
-        <button type="button" class="btn btn-primary" onclick="printDoc()">🖨️ เปิดเอกสาร Google Doc</button>
+        <button type="button" class="btn btn-primary" id="btnPrintDoc" onclick="printDoc()">🖨️ เปิดเอกสาร Google Doc</button>
       </div>
     </div>
   </div>
@@ -205,7 +259,7 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-  // URL ของ Web App
+  // *** ใส่ URL Web App ของคุณ ***
   const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzxm0TqS_TSeicnkLuCrJdOljrCY9IH3vZJtEddoBB_vEUg4U92Rnfww4ujDac3APy5aw/exec'; 
   
   let globalData = []; 
@@ -214,7 +268,9 @@
   let unlockedAssign = false; 
   let unlockedDriver = false; 
   let calendar; 
+  let charts = {}; // ตัวแปรเก็บกราฟ Dashboard
 
+  // โหลดตัวเลือกต่างๆ (Dropdown)
   async function loadOptions() {
     try {
       const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getOptions' }) });
@@ -257,27 +313,33 @@
      if(selectedCar) document.getElementById('assign_o').value = selectedCar.model;
   });
 
-  // 🟢 สั่งโหลดข้อมูลทันทีที่เปิดเว็บ (เพื่อดึงตัวเลือกและวาดปฏิทิน)
+  // รันตอนเปิดเว็บครั้งแรก (หน้าระบุเป็น Request อยู่แล้ว)
   window.onload = () => {
     loadOptions();
     loadData(); 
   };
 
-  // 🟢 แก้ไขฟังก์ชันสลับหน้าให้สมบูรณ์ (เติมวงเล็บที่ขาดไป)
+  // 🟢 ฟังก์ชันจัดการสลับหน้า
   function switchPage(pageId, tabElement) {
     document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
     document.getElementById(pageId).classList.add('active');
     if (tabElement) tabElement.classList.add('active');
     
-    // โหลดข้อมูลเมื่อเข้าหน้าอื่นที่ไม่ใช่ขอใช้รถ
+    // อัปเดตข้อมูลเมื่อไม่ได้อยู่หน้าขอใช้รถ
     if (pageId !== 'page-request') loadData();
 
-    // ถ้าย้ายมาหน้าปฏิทิน สั่ง Render ขนาดให้พอดีจอ
-    if (pageId === 'page-calendar' && calendar) {
-      setTimeout(() => calendar.render(), 100);
+    // ถ้าย้ายมาหน้าปฏิทิน ให้วาดปฏิทินใหม่เพื่อป้องกันกราฟิกเพี้ยน
+    if (pageId === 'page-calendar') {
+      if (!calendar) renderCalendar(); 
+      else setTimeout(() => calendar.render(), 100);
     }
-  } // <-- 🟢 เพิ่มวงเล็บปิดฟังก์ชันที่หายไป
+
+    // ถ้าย้ายมาหน้า Dashboard ให้อัปเดตกราฟ
+    if (pageId === 'page-dashboard') {
+      updateDashboard();
+    }
+  }
 
   async function checkLoginAndSwitch(pageId, tabElement) {
     if (pageId === 'page-assign' && !unlockedAssign) {
@@ -290,8 +352,6 @@
       if (pass === '1234') { unlockedDriver = true; Swal.fire('สำเร็จ', 'ปลดล็อกเรียบร้อย', 'success'); } 
       else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง!', 'error'); return; }
     }
-
-    // เรียกใช้ฟังก์ชันสลับหน้าปกติหลังจากปลดล็อกผ่าน
     switchPage(pageId, tabElement);
   }
 
@@ -308,6 +368,7 @@
     }
   }
 
+  // --- ขอบันทึกใช้รถ ---
   document.getElementById('formRequest').addEventListener('submit', async (e) => {
     e.preventDefault();
     const st = new Date(document.getElementById('req_e').value);
@@ -326,8 +387,8 @@
     e.target.reset();
   });
 
+  // --- โหลดและดึงข้อมูลใส่ตาราง/กราฟ ---
   async function loadData() {
-    // โชว์ Loading ถ้าหน้าจอไม่ได้อยู่ที่ฟอร์มขอใช้รถ 
     const isRequestPage = document.getElementById('page-request').classList.contains('active');
     if (!isRequestPage) Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     
@@ -337,7 +398,10 @@
       globalData = json.data;
       
       renderTables();
-      renderCalendar(); // อัปเดตข้อมูลปฏิทิน
+      
+      // อัปเดตข้อมูลกราฟิกตามหน้าที่เปิดอยู่
+      if(document.getElementById('page-calendar').classList.contains('active')) renderCalendar();
+      if(document.getElementById('page-dashboard').classList.contains('active')) updateDashboard();
       
       if (!isRequestPage) Swal.close();
     } catch (err) { 
@@ -350,6 +414,7 @@
     return isNaN(d) ? dStr : d.toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
   }
 
+  // วาดตาราง 3 หน้า
   function renderTables() {
     if ($.fn.DataTable.isDataTable('#tableAssign')) $('#tableAssign').DataTable().destroy();
     if ($.fn.DataTable.isDataTable('#tableDriver')) $('#tableDriver').DataTable().destroy();
@@ -367,7 +432,6 @@
       const printCount = parseInt(row[23]) || 0; 
       
       let status = 'รอจัดรถ'; let badge = 'danger';
-      
       if (driver) {
         if (driver.includes('ยกเลิก')) { status = 'ยกเลิก (เสร็จสิ้น)'; badge = 'secondary'; }
         else if (diffKm !== '') { status = 'เสร็จสิ้น'; badge = 'success'; }
@@ -391,7 +455,7 @@
       if (id) {
         let printBadge = printCount > 0 ? ` <span class="badge bg-info text-dark">พิมพ์ ${printCount}</span>` : '';
         tbodyR.innerHTML += `<tr>
-          <td><button class="btn btn-sm btn-outline-primary" onclick="openView('${id}')">🔍 ข้อมูล</button></td>
+          <td><button class="btn btn-sm btn-outline-primary" onclick="openView('${id}', false)">🔍 ข้อมูล</button></td>
           <td>${id}</td><td><span class="badge bg-${badge}">${status}</span>${printBadge}</td><td>${start}</td><td class="text-danger">${end}</td>
           <td>${req}</td><td>${place}</td><td>${driver || '-'}</td>
           <td>${plate || '-'}</td><td>${diffKm !== '' ? diffKm + ' กม.' : '-'}</td>
@@ -405,6 +469,7 @@
     $('#filterDriver').off('change').on('change', function() { tableDr.column(6).search(this.value).draw(); }); 
   }
 
+  // --- จัดรถ & พขร ---
   const modalAssign = new bootstrap.Modal(document.getElementById('modalAssign'));
   function openAssign(id) {
     document.getElementById('assign_id').value = id; document.getElementById('assign_id_lbl').innerText = id;
@@ -445,8 +510,9 @@
     Swal.fire('สำเร็จ', 'บันทึกรายงานการขับรถเรียบร้อย', 'success'); modalDriver.hide(); loadData(); 
   });
 
+  // --- 🟢 ดูข้อมูลทั้งหมด (รองรับการซ่อนปุ่มพิมพ์) ---
   const modalView = new bootstrap.Modal(document.getElementById('modalView'));
-  function openView(id) {
+  function openView(id, fromCalendar = false) {
     document.getElementById('view_id_lbl').innerText = id;
     const row = globalData.find(r => r[0] == id);
     if(!row) return;
@@ -465,6 +531,10 @@
       <div class="col-md-6 mb-2"><b>เลขไมล์ไป-กลับ:</b> ${row[17] || '-'} ถึง ${row[18] || '-'} (ระยะ: ${row[19] || '-'})</div>
       <div class="col-md-6 mb-2"><b>เติมน้ำมัน:</b> ${row[20] || '-'} ลิตร (${row[21] || '-'} บาท)</div>
     `;
+
+    // ซ่อนหรือแสดงปุ่มพิมพ์เอกสาร
+    document.getElementById('btnPrintDoc').style.display = fromCalendar ? 'none' : 'block';
+
     modalView.show();
   }
 
@@ -482,52 +552,167 @@
     } catch (err) { Swal.fire('ข้อผิดพลาด', err.message, 'error'); }
   }
 
+  // --- 🟢 สร้างปฏิทิน ---
   function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
     if (calendar) calendar.destroy();
 
     const events = globalData.map(row => {
-      const id = row[0];
-      const start = row[4];
-      const end = row[5];
-      const place = row[7] || 'ไม่ระบุสถานที่';
+      const id = row[0]; const start = row[4]; const end = row[5];
+      const place = row[7] || 'ไม่ระบุสถานที่'; const driver = row[12];
       const plate = row[13] ? `(${row[13]})` : '(ยังไม่จัดรถ)';
-      const driver = row[12];
       const diffKm = row[19];
 
-      let color = '#dc3545'; // รอจัดรถ
+      let color = '#dc3545'; // แดง = รอจัดรถ
       if (driver) {
         if (driver.includes('ยกเลิก')) color = '#6c757d'; 
-        else if (diffKm !== '') color = '#198754'; 
-        else color = '#ffc107'; 
+        else if (diffKm !== '') color = '#198754'; // เขียว = จบงาน
+        else color = '#ffc107'; // เหลือง = รอขับ
       }
 
       return {
-        id: id,
-        title: `${place} ${plate}`,
-        start: start,
-        end: end,
-        backgroundColor: color,
-        borderColor: color,
-        textColor: color === '#ffc107' ? '#000' : '#fff' 
+        id: id, title: `${place} ${plate}`, start: start, end: end,
+        backgroundColor: color, borderColor: color, textColor: color === '#ffc107' ? '#000' : '#fff' 
       };
     }).filter(event => event.id);
 
     calendar = new FullCalendar.Calendar(calendarEl, {
       initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth', 
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek,listWeek'
-      },
+      headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
       locale: 'th', 
       events: events,
       eventClick: function(info) {
-        openView(info.event.id);
+        openView(info.event.id, true); // 🟢 ส่ง true เพื่อซ่อนปุ่มพิมพ์
+      }
+    });
+    calendar.render();
+  }
+
+  // ================= 🟢 ส่วนการทำงานของ Dashboard =================
+  function toggleDashFilters() {
+    const type = document.getElementById('dashFilterType').value;
+    document.getElementById('f-date').style.display = type === 'date' ? 'flex' : 'none';
+    document.getElementById('f-month').style.display = type === 'month' ? 'block' : 'none';
+    document.getElementById('f-fy').style.display = type === 'fy' ? 'block' : 'none';
+  }
+
+  function initDashFY() {
+    const fys = new Set();
+    globalData.forEach(r => {
+      if(r[4]) {
+        const d = new Date(r[4]);
+        if(!isNaN(d)) {
+           let m = d.getMonth() + 1;
+           let y = d.getFullYear() + 543;
+           fys.add(m >= 10 ? y + 1 : y); // ปีงบประมาณไทย
+        }
+      }
+    });
+    const sel = document.getElementById('dashFY');
+    sel.innerHTML = '';
+    Array.from(fys).sort().reverse().forEach(fy => {
+       sel.innerHTML += `<option value="${fy}">${fy}</option>`;
+    });
+  }
+
+  function updateDashboard() {
+    if(Object.keys(charts).length === 0) initDashFY(); // เติมปีงบประมาณครั้งแรก
+
+    const type = document.getElementById('dashFilterType').value;
+    let filteredData = globalData.filter(r => r[0]); // เอาเฉพาะแถวที่มีข้อมูล (มี ID)
+
+    // 1. กรองข้อมูลตามที่เลือก
+    if (type === 'date') {
+      const sd = new Date(document.getElementById('dashStartDate').value);
+      const ed = new Date(document.getElementById('dashEndDate').value);
+      ed.setHours(23,59,59,999);
+      if(!isNaN(sd) && !isNaN(ed)) {
+        filteredData = filteredData.filter(r => {
+          const d = new Date(r[4]); return d >= sd && d <= ed;
+        });
+      }
+    } else if (type === 'month') {
+      const val = document.getElementById('dashMonth').value; // YYYY-MM
+      if(val) {
+        const [yy, mm] = val.split('-');
+        filteredData = filteredData.filter(r => {
+          const d = new Date(r[4]);
+          return d.getFullYear() == yy && (d.getMonth() + 1) == mm;
+        });
+      }
+    } else if (type === 'fy') {
+      const targetFy = parseInt(document.getElementById('dashFY').value);
+      if(targetFy) {
+         filteredData = filteredData.filter(r => {
+           const d = new Date(r[4]);
+           if(isNaN(d)) return false;
+           let m = d.getMonth() + 1; let y = d.getFullYear() + 543;
+           return (m >= 10 ? y + 1 : y) === targetFy;
+         });
+      }
+    }
+
+    // 2. ประมวลผลข้อมูล (คำนวณกราฟ)
+    const dailyCounts = {};
+    const carCounts = {};
+    const driverCounts = {};
+    const carKMs = {}; // สำหรับหา Max-Min ของรถแต่ละคัน
+
+    filteredData.forEach(r => {
+      // กราฟ 1: การใช้รถแต่ละวัน
+      if(r[4]) {
+        const d = new Date(r[4]);
+        if(!isNaN(d)) {
+          const dateStr = `${('0'+d.getDate()).slice(-2)}/${('0'+(d.getMonth()+1)).slice(-2)}/${d.getFullYear()+543}`;
+          dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
+        }
+      }
+
+      // กราฟ 2: รถแต่ละคัน
+      const plate = r[13];
+      if(plate) carCounts[plate] = (carCounts[plate] || 0) + 1;
+
+      // กราฟ 3: พขร แต่ละคน
+      const driver = r[12];
+      if(driver && !driver.includes('ยกเลิก')) driverCounts[driver] = (driverCounts[driver] || 0) + 1;
+
+      // กราฟ 4: กม. มากสุด-น้อยสุด ของแต่ละคัน
+      if(plate) {
+         const st = parseFloat(r[17]);
+         const en = parseFloat(r[18]);
+         if(!carKMs[plate]) carKMs[plate] = { min: Infinity, max: -Infinity };
+         if(!isNaN(st) && st < carKMs[plate].min) carKMs[plate].min = st;
+         if(!isNaN(en) && en > carKMs[plate].max) carKMs[plate].max = en;
       }
     });
 
-    calendar.render();
+    // ดึงค่ามาเตรียมวาดกราฟ กม.
+    const carKmLabels = []; const carKmData = [];
+    for(let plate in carKMs) {
+      if(carKMs[plate].min !== Infinity && carKMs[plate].max !== -Infinity) {
+        let diff = carKMs[plate].max - carKMs[plate].min;
+        if(diff > 0) { carKmLabels.push(plate); carKmData.push(diff); }
+      }
+    }
+
+    // 3. วาดกราฟ
+    renderChart('chartDaily', 'line', 'จำนวนการใช้รถ (ครั้ง)', Object.keys(dailyCounts), Object.values(dailyCounts), '#0d6efd');
+    renderChart('chartCarCount', 'bar', 'จำนวนครั้งที่ใช้รถแต่ละคัน', Object.keys(carCounts), Object.values(carCounts), '#198754');
+    renderChart('chartDriverCount', 'bar', 'จำนวนครั้งของ พขร.', Object.keys(driverCounts), Object.values(driverCounts), '#ffc107');
+    renderChart('chartCarKm', 'bar', 'ระยะทางที่ขับ (กม.) รวม', carKmLabels, carKmData, '#dc3545');
+  }
+
+  function renderChart(canvasId, type, label, labels, data, color) {
+    if(charts[canvasId]) charts[canvasId].destroy();
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    charts[canvasId] = new Chart(ctx, {
+      type: type,
+      data: {
+        labels: labels,
+        datasets: [{ label: label, data: data, backgroundColor: color, borderColor: color, borderWidth: 1 }]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
   }
 </script>
 </body>
