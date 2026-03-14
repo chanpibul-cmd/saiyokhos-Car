@@ -10,13 +10,16 @@
   <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
   
   <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+  
+  <style>
     body { background-color: #f4f7f6; font-family: 'Sarabun', sans-serif; }
     .nav-pills .nav-link.active { background-color: #0d6efd; }
     .nav-link { cursor: pointer; color: #495057; font-weight: bold; }
     .page-section { display: none; padding: 20px 0; }
     .page-section.active { display: block; }
     .card { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
+    .chart-container { position: relative; height: 300px; width: 100%; } /* สำหรับคุมขนาดกราฟแนวนอน */
   </style>
 </head>
 <body>
@@ -164,16 +167,24 @@
 
       <div class="row">
         <div class="col-md-12 mb-4">
-          <div class="card p-3 shadow-sm border-0"><canvas id="chartDaily" height="80"></canvas></div>
+          <div class="card p-3 shadow-sm border-0">
+            <div class="chart-container"><canvas id="chartDaily"></canvas></div>
+          </div>
         </div>
         <div class="col-md-4 mb-4">
-          <div class="card p-3 shadow-sm border-0"><canvas id="chartCarCount"></canvas></div>
+          <div class="card p-3 shadow-sm border-0">
+            <div class="chart-container"><canvas id="chartCarCount"></canvas></div>
+          </div>
         </div>
         <div class="col-md-4 mb-4">
-          <div class="card p-3 shadow-sm border-0"><canvas id="chartDriverCount"></canvas></div>
+          <div class="card p-3 shadow-sm border-0">
+            <div class="chart-container"><canvas id="chartDriverCount"></canvas></div>
+          </div>
         </div>
         <div class="col-md-4 mb-4">
-          <div class="card p-3 shadow-sm border-0"><canvas id="chartCarKm"></canvas></div>
+          <div class="card p-3 shadow-sm border-0">
+            <div class="chart-container"><canvas id="chartCarKm"></canvas></div>
+          </div>
         </div>
       </div>
     </div>
@@ -268,9 +279,8 @@
   let unlockedAssign = false; 
   let unlockedDriver = false; 
   let calendar; 
-  let charts = {}; // ตัวแปรเก็บกราฟ Dashboard
+  let charts = {}; 
 
-  // โหลดตัวเลือกต่างๆ (Dropdown)
   async function loadOptions() {
     try {
       const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getOptions' }) });
@@ -295,11 +305,8 @@
 
   document.getElementById('req_c').addEventListener('input', function() {
      const selectedUser = userList.find(u => u.name === this.value);
-     if(selectedUser) {
-         document.getElementById('req_d').value = selectedUser.group;
-     } else {
-         document.getElementById('req_d').value = ''; 
-     }
+     if(selectedUser) document.getElementById('req_d').value = selectedUser.group;
+     else document.getElementById('req_d').value = ''; 
   });
 
   function populateSelect(id, arr, placeholder) {
@@ -313,32 +320,23 @@
      if(selectedCar) document.getElementById('assign_o').value = selectedCar.model;
   });
 
-  // รันตอนเปิดเว็บครั้งแรก (หน้าระบุเป็น Request อยู่แล้ว)
   window.onload = () => {
     loadOptions();
     loadData(); 
   };
 
-  // 🟢 ฟังก์ชันจัดการสลับหน้า
   function switchPage(pageId, tabElement) {
     document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
     document.getElementById(pageId).classList.add('active');
     if (tabElement) tabElement.classList.add('active');
     
-    // อัปเดตข้อมูลเมื่อไม่ได้อยู่หน้าขอใช้รถ
     if (pageId !== 'page-request') loadData();
-
-    // ถ้าย้ายมาหน้าปฏิทิน ให้วาดปฏิทินใหม่เพื่อป้องกันกราฟิกเพี้ยน
     if (pageId === 'page-calendar') {
       if (!calendar) renderCalendar(); 
       else setTimeout(() => calendar.render(), 100);
     }
-
-    // ถ้าย้ายมาหน้า Dashboard ให้อัปเดตกราฟ
-    if (pageId === 'page-dashboard') {
-      updateDashboard();
-    }
+    if (pageId === 'page-dashboard') updateDashboard();
   }
 
   async function checkLoginAndSwitch(pageId, tabElement) {
@@ -362,13 +360,9 @@
       const data = await res.json();
       if (data.status !== 'success') throw new Error(data.message);
       return data;
-    } catch (err) {
-      Swal.fire('ข้อผิดพลาด', err.message, 'error');
-      throw err;
-    }
+    } catch (err) { Swal.fire('ข้อผิดพลาด', err.message, 'error'); throw err; }
   }
 
-  // --- ขอบันทึกใช้รถ ---
   document.getElementById('formRequest').addEventListener('submit', async (e) => {
     e.preventDefault();
     const st = new Date(document.getElementById('req_e').value);
@@ -387,7 +381,6 @@
     e.target.reset();
   });
 
-  // --- โหลดและดึงข้อมูลใส่ตาราง/กราฟ ---
   async function loadData() {
     const isRequestPage = document.getElementById('page-request').classList.contains('active');
     if (!isRequestPage) Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
@@ -398,15 +391,11 @@
       globalData = json.data;
       
       renderTables();
-      
-      // อัปเดตข้อมูลกราฟิกตามหน้าที่เปิดอยู่
       if(document.getElementById('page-calendar').classList.contains('active')) renderCalendar();
       if(document.getElementById('page-dashboard').classList.contains('active')) updateDashboard();
       
       if (!isRequestPage) Swal.close();
-    } catch (err) { 
-      if (!isRequestPage) Swal.fire('ข้อผิดพลาด', 'โหลดข้อมูลไม่สำเร็จ', 'error'); 
-    }
+    } catch (err) { if (!isRequestPage) Swal.fire('ข้อผิดพลาด', 'โหลดข้อมูลไม่สำเร็จ', 'error'); }
   }
 
   function formatDateUI(dStr) {
@@ -414,7 +403,6 @@
     return isNaN(d) ? dStr : d.toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
   }
 
-  // วาดตาราง 3 หน้า
   function renderTables() {
     if ($.fn.DataTable.isDataTable('#tableAssign')) $('#tableAssign').DataTable().destroy();
     if ($.fn.DataTable.isDataTable('#tableDriver')) $('#tableDriver').DataTable().destroy();
@@ -510,7 +498,7 @@
     Swal.fire('สำเร็จ', 'บันทึกรายงานการขับรถเรียบร้อย', 'success'); modalDriver.hide(); loadData(); 
   });
 
-  // --- 🟢 ดูข้อมูลทั้งหมด (รองรับการซ่อนปุ่มพิมพ์) ---
+  // --- ดูข้อมูล ---
   const modalView = new bootstrap.Modal(document.getElementById('modalView'));
   function openView(id, fromCalendar = false) {
     document.getElementById('view_id_lbl').innerText = id;
@@ -532,9 +520,7 @@
       <div class="col-md-6 mb-2"><b>เติมน้ำมัน:</b> ${row[20] || '-'} ลิตร (${row[21] || '-'} บาท)</div>
     `;
 
-    // ซ่อนหรือแสดงปุ่มพิมพ์เอกสาร
     document.getElementById('btnPrintDoc').style.display = fromCalendar ? 'none' : 'block';
-
     modalView.show();
   }
 
@@ -552,7 +538,6 @@
     } catch (err) { Swal.fire('ข้อผิดพลาด', err.message, 'error'); }
   }
 
-  // --- 🟢 สร้างปฏิทิน ---
   function renderCalendar() {
     const calendarEl = document.getElementById('calendar');
     if (calendar) calendar.destroy();
@@ -563,11 +548,11 @@
       const plate = row[13] ? `(${row[13]})` : '(ยังไม่จัดรถ)';
       const diffKm = row[19];
 
-      let color = '#dc3545'; // แดง = รอจัดรถ
+      let color = '#dc3545'; 
       if (driver) {
         if (driver.includes('ยกเลิก')) color = '#6c757d'; 
-        else if (diffKm !== '') color = '#198754'; // เขียว = จบงาน
-        else color = '#ffc107'; // เหลือง = รอขับ
+        else if (diffKm !== '') color = '#198754'; 
+        else color = '#ffc107'; 
       }
 
       return {
@@ -582,7 +567,7 @@
       locale: 'th', 
       events: events,
       eventClick: function(info) {
-        openView(info.event.id, true); // 🟢 ส่ง true เพื่อซ่อนปุ่มพิมพ์
+        openView(info.event.id, true); 
       }
     });
     calendar.render();
@@ -599,12 +584,13 @@
   function initDashFY() {
     const fys = new Set();
     globalData.forEach(r => {
-      if(r[4]) {
-        const d = new Date(r[4]);
+      let dVal = r[15] || r[4]; // ใช้ ขับจริง (P) หรือ ขอวันที่ (E) ในการหาปี
+      if(dVal) {
+        const d = new Date(dVal);
         if(!isNaN(d)) {
            let m = d.getMonth() + 1;
            let y = d.getFullYear() + 543;
-           fys.add(m >= 10 ? y + 1 : y); // ปีงบประมาณไทย
+           fys.add(m >= 10 ? y + 1 : y); 
         }
       }
     });
@@ -616,27 +602,29 @@
   }
 
   function updateDashboard() {
-    if(Object.keys(charts).length === 0) initDashFY(); // เติมปีงบประมาณครั้งแรก
+    if(Object.keys(charts).length === 0) initDashFY(); 
 
     const type = document.getElementById('dashFilterType').value;
-    let filteredData = globalData.filter(r => r[0]); // เอาเฉพาะแถวที่มีข้อมูล (มี ID)
+    
+    // 🟢 ตัดรายการที่ ID ว่าง หรือ ถูก "ยกเลิก" ออกไปก่อนเลย
+    let filteredData = globalData.filter(r => r[0] && !(r[12] && String(r[12]).includes('ยกเลิก')));
 
-    // 1. กรองข้อมูลตามที่เลือก
+    // กรองตามวันที่ โดยอิงจาก "ขับจริง (P)" หรือ "ขอวันที่ (E)"
     if (type === 'date') {
       const sd = new Date(document.getElementById('dashStartDate').value);
       const ed = new Date(document.getElementById('dashEndDate').value);
       ed.setHours(23,59,59,999);
       if(!isNaN(sd) && !isNaN(ed)) {
         filteredData = filteredData.filter(r => {
-          const d = new Date(r[4]); return d >= sd && d <= ed;
+          const d = new Date(r[15] || r[4]); return d >= sd && d <= ed;
         });
       }
     } else if (type === 'month') {
-      const val = document.getElementById('dashMonth').value; // YYYY-MM
+      const val = document.getElementById('dashMonth').value; 
       if(val) {
         const [yy, mm] = val.split('-');
         filteredData = filteredData.filter(r => {
-          const d = new Date(r[4]);
+          const d = new Date(r[15] || r[4]);
           return d.getFullYear() == yy && (d.getMonth() + 1) == mm;
         });
       }
@@ -644,7 +632,7 @@
       const targetFy = parseInt(document.getElementById('dashFY').value);
       if(targetFy) {
          filteredData = filteredData.filter(r => {
-           const d = new Date(r[4]);
+           const d = new Date(r[15] || r[4]);
            if(isNaN(d)) return false;
            let m = d.getMonth() + 1; let y = d.getFullYear() + 543;
            return (m >= 10 ? y + 1 : y) === targetFy;
@@ -652,41 +640,54 @@
       }
     }
 
-    // 2. ประมวลผลข้อมูล (คำนวณกราฟ)
     const dailyCounts = {};
     const carCounts = {};
     const driverCounts = {};
-    const carKMs = {}; // สำหรับหา Max-Min ของรถแต่ละคัน
+    const carKMs = {}; 
 
+    // คำนวณข้อมูล
     filteredData.forEach(r => {
-      // กราฟ 1: การใช้รถแต่ละวัน
-      if(r[4]) {
-        const d = new Date(r[4]);
-        if(!isNaN(d)) {
-          const dateStr = `${('0'+d.getDate()).slice(-2)}/${('0'+(d.getMonth()+1)).slice(-2)}/${d.getFullYear()+543}`;
+      // 🟢 ใช้ "ขับจริง" และ "ขับถึงจริง" ในการคำนวณจำนวน
+      if (!r[15]) return; // ข้ามถ้ายังไม่ได้ขับจริง (ยังไม่ได้ลงรายงาน)
+
+      let st = new Date(r[15]);
+      if (isNaN(st)) return;
+      let en = new Date(r[16]);
+      if (isNaN(en)) en = st; // ถ้าไม่มีขับถึงจริง ให้นับแค่วันเดียว
+
+      let current = new Date(st);
+      current.setHours(0,0,0,0);
+      let endDay = new Date(en);
+      endDay.setHours(0,0,0,0);
+      
+      let daysCount = 0;
+      // วนลูปนับวัน (ถ้าข้ามวันจะนับให้ทุกวัน)
+      while(current <= endDay) {
+          const dateStr = `${('0'+current.getDate()).slice(-2)}/${('0'+(current.getMonth()+1)).slice(-2)}/${current.getFullYear()+543}`;
           dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
-        }
+          current.setDate(current.getDate() + 1);
+          daysCount++;
+      }
+      if(daysCount === 0) daysCount = 1;
+
+      const plate = r[13];
+      if(plate) {
+         carCounts[plate] = (carCounts[plate] || 0) + daysCount; // เพิ่มยอดตามจำนวนวันที่ขับ
+         
+         // 🟢 คำนวณ กม. รวม (มากสุด - น้อยสุด) ในช่วงเวลาที่เลือก
+         const kmSt = parseFloat(r[17]);
+         const kmEn = parseFloat(r[18]);
+         if(!carKMs[plate]) carKMs[plate] = { min: Infinity, max: -Infinity };
+         if(!isNaN(kmSt) && kmSt < carKMs[plate].min) carKMs[plate].min = kmSt;
+         if(!isNaN(kmEn) && kmEn > carKMs[plate].max) carKMs[plate].max = kmEn;
       }
 
-      // กราฟ 2: รถแต่ละคัน
-      const plate = r[13];
-      if(plate) carCounts[plate] = (carCounts[plate] || 0) + 1;
-
-      // กราฟ 3: พขร แต่ละคน
       const driver = r[12];
-      if(driver && !driver.includes('ยกเลิก')) driverCounts[driver] = (driverCounts[driver] || 0) + 1;
-
-      // กราฟ 4: กม. มากสุด-น้อยสุด ของแต่ละคัน
-      if(plate) {
-         const st = parseFloat(r[17]);
-         const en = parseFloat(r[18]);
-         if(!carKMs[plate]) carKMs[plate] = { min: Infinity, max: -Infinity };
-         if(!isNaN(st) && st < carKMs[plate].min) carKMs[plate].min = st;
-         if(!isNaN(en) && en > carKMs[plate].max) carKMs[plate].max = en;
+      if(driver) {
+         driverCounts[driver] = (driverCounts[driver] || 0) + daysCount; // เพิ่มยอดตามจำนวนวันที่ขับ
       }
     });
 
-    // ดึงค่ามาเตรียมวาดกราฟ กม.
     const carKmLabels = []; const carKmData = [];
     for(let plate in carKMs) {
       if(carKMs[plate].min !== Infinity && carKMs[plate].max !== -Infinity) {
@@ -695,23 +696,35 @@
       }
     }
 
-    // 3. วาดกราฟ
-    renderChart('chartDaily', 'line', 'จำนวนการใช้รถ (ครั้ง)', Object.keys(dailyCounts), Object.values(dailyCounts), '#0d6efd');
-    renderChart('chartCarCount', 'bar', 'จำนวนครั้งที่ใช้รถแต่ละคัน', Object.keys(carCounts), Object.values(carCounts), '#198754');
-    renderChart('chartDriverCount', 'bar', 'จำนวนครั้งของ พขร.', Object.keys(driverCounts), Object.values(driverCounts), '#ffc107');
-    renderChart('chartCarKm', 'bar', 'ระยะทางที่ขับ (กม.) รวม', carKmLabels, carKmData, '#dc3545');
+    // 🟢 วาดกราฟแนวนอน (horizontalBar)
+    renderChart('chartDaily', 'line', 'จำนวนการใช้รถ (ครั้ง/วัน)', Object.keys(dailyCounts), Object.values(dailyCounts), '#0d6efd');
+    renderChart('chartCarCount', 'horizontalBar', 'จำนวนครั้งที่ใช้รถแต่ละคัน (นับตามวัน)', Object.keys(carCounts), Object.values(carCounts), '#198754');
+    renderChart('chartDriverCount', 'horizontalBar', 'จำนวนครั้งของ พขร. (นับตามวัน)', Object.keys(driverCounts), Object.values(driverCounts), '#ffc107');
+    renderChart('chartCarKm', 'horizontalBar', 'ระยะทางที่ขับรวม (กม.)', carKmLabels, carKmData, '#dc3545');
   }
 
   function renderChart(canvasId, type, label, labels, data, color) {
     if(charts[canvasId]) charts[canvasId].destroy();
     const ctx = document.getElementById(canvasId).getContext('2d');
+    
+    // ตั้งค่ารักษาสเกลกราฟให้อยู่ใน div ที่กำหนด
+    let options = { responsive: true, maintainAspectRatio: false };
+    
+    if(type === 'horizontalBar') {
+       type = 'bar';
+       options.indexAxis = 'y'; // 🟢 เปลี่ยนกราฟแท่งเป็นแนวนอน
+       options.scales = { x: { beginAtZero: true } };
+    } else {
+       options.scales = { y: { beginAtZero: true } };
+    }
+    
     charts[canvasId] = new Chart(ctx, {
       type: type,
       data: {
         labels: labels,
         datasets: [{ label: label, data: data, backgroundColor: color, borderColor: color, borderWidth: 1 }]
       },
-      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      options: options
     });
   }
 </script>
