@@ -427,6 +427,7 @@
     return isNaN(d) ? dStr : d.toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
   }
 
+  // 🟢 ปรับปรุงฟังก์ชัน renderTables
   function renderTables() {
     if ($.fn.DataTable.isDataTable('#tableAssign')) $('#tableAssign').DataTable().destroy();
     if ($.fn.DataTable.isDataTable('#tableDriver')) $('#tableDriver').DataTable().destroy();
@@ -450,20 +451,35 @@
         else { status = 'รอขับรถ'; badge = 'warning'; }
       }
 
-      if (!driver && id) {
+      // 🟢 1. หน้าจัดรถ - แสดงข้อมูลทั้งหมด (ที่ไม่ได้ถูกยกเลิก)
+      if (id && (!driver || !driver.includes('ยกเลิก'))) {
+        let assignBtn = '';
+        if (!driver) {
+          assignBtn = `<button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button>`;
+        } else {
+          assignBtn = `<button class="btn btn-sm btn-success" onclick="openAssign('${id}')">จัดแล้ว (แก้ไข)</button>`;
+        }
         tbodyA.innerHTML += `<tr>
-          <td><button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button></td>
+          <td>${assignBtn}</td>
           <td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${subj}</td><td>${place}</td><td>${cType}</td>
         </tr>`;
       }
 
-      if (driver && diffKm === '' && id && !driver.includes('ยกเลิก')) {
+      // 🟢 2. หน้ารายงาน พขร. - แสดงข้อมูลที่จัดรถแล้วทั้งหมด
+      if (driver && id && !driver.includes('ยกเลิก')) {
+        let driverBtn = '';
+        if (diffKm === '') {
+          driverBtn = `<button class="btn btn-sm btn-info text-white" onclick="openDriver('${id}')">บันทึกขับรถ</button>`;
+        } else {
+          driverBtn = `<button class="btn btn-sm btn-primary" onclick="openDriver('${id}')">แก้ไขรายงาน</button>`;
+        }
         tbodyD.innerHTML += `<tr>
-          <td><button class="btn btn-sm btn-info text-white" onclick="openDriver('${id}')">บันทึกขับรถ</button></td>
+          <td>${driverBtn}</td>
           <td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver}</td><td>${plate}</td>
         </tr>`;
       }
 
+      // ตารางรายงานทั้งหมด (ใช้ของเดิม)
       if (id) {
         let printBadge = printCount > 0 ? ` <span class="badge bg-info text-dark">พิมพ์ ${printCount}</span>` : '';
         tbodyR.innerHTML += `<tr>
@@ -475,51 +491,114 @@
       }
     });
 
-    $('#tableAssign').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
-    $('#tableReport').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
-    const tableDr = $('#tableDriver').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
+    $('#tableAssign').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']] });
+    $('#tableReport').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']] });
+    const tableDr = $('#tableDriver').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']] });
     $('#filterDriver').off('change').on('change', function() { tableDr.column(6).search(this.value).draw(); }); 
   }
 
   // --- จัดรถ & พขร ---
-  const modalAssign = new bootstrap.Modal(document.getElementById('modalAssign'));
-  function openAssign(id) {
-    document.getElementById('assign_id').value = id; document.getElementById('assign_id_lbl').innerText = id;
-    document.getElementById('formAssign').reset(); modalAssign.show();
+  
+  // 🟢 ฟังก์ชันช่วยเหลือเพื่อแปลงวันที่ให้แสดงใน input type="datetime-local" ได้
+  function toDateTimeLocal(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    if (isNaN(d)) return '';
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
+    return (new Date(d - tzoffset)).toISOString().slice(0, 16);
   }
+
+  const modalAssign = new bootstrap.Modal(document.getElementById('modalAssign'));
+  
+  function openAssign(id) {
+    document.getElementById('assign_id').value = id; 
+    document.getElementById('assign_id_lbl').innerText = id;
+    document.getElementById('formAssign').reset(); 
+    
+    // 🟢 ดึงข้อมูลเดิมมาแสดงเพื่อแก้ไข
+    const row = globalData.find(r => r[0] == id);
+    if (row) {
+      if (row[12]) document.getElementById('assign_m').value = row[12];
+      if (row[13]) {
+        document.getElementById('assign_n').value = row[13];
+        document.getElementById('assign_o').value = row[14];
+      }
+    }
+    
+    modalAssign.show();
+  }
+  
   document.getElementById('formAssign').addEventListener('submit', async (e) => {
     e.preventDefault();
-    await callAPI('assignCar', { id: document.getElementById('assign_id').value, driver: document.getElementById('assign_m').value, plate: document.getElementById('assign_n').value, model: document.getElementById('assign_o').value });
-    Swal.fire('สำเร็จ', 'จัดรถเรียบร้อย', 'success'); modalAssign.hide(); loadData(); 
+    await callAPI('assignCar', { 
+      id: document.getElementById('assign_id').value, 
+      driver: document.getElementById('assign_m').value, 
+      plate: document.getElementById('assign_n').value, 
+      model: document.getElementById('assign_o').value 
+    });
+    Swal.fire('สำเร็จ', 'บันทึกการจัดรถเรียบร้อย', 'success'); 
+    modalAssign.hide(); 
+    loadData(); 
   });
 
   const modalDriver = new bootstrap.Modal(document.getElementById('modalDriver'));
+  
   function openDriver(id) {
-    document.getElementById('driver_id').value = id; document.getElementById('driver_id_lbl').innerText = id;
-    document.getElementById('formDriver').reset(); modalDriver.show();
+    document.getElementById('driver_id').value = id; 
+    document.getElementById('driver_id_lbl').innerText = id;
+    document.getElementById('formDriver').reset(); 
+    
+    // 🟢 ดึงข้อมูลเดิมมาแสดงเพื่อแก้ไข
+    const row = globalData.find(r => r[0] == id);
+    if (row) {
+      if (row[15]) document.getElementById('driver_p').value = toDateTimeLocal(row[15]);
+      if (row[16]) document.getElementById('driver_q').value = toDateTimeLocal(row[16]);
+      if (row[17] !== '') document.getElementById('driver_r').value = row[17];
+      if (row[18] !== '') document.getElementById('driver_s').value = row[18];
+      if (row[19] !== '') document.getElementById('driver_t').value = row[19];
+      if (row[20] !== '') document.getElementById('driver_u').value = row[20];
+      if (row[21] !== '') document.getElementById('driver_v').value = row[21];
+    }
+    
+    modalDriver.show();
   }
+  
   function calcKM() {
     const start = parseFloat(document.getElementById('driver_r').value) || 0;
     const end = parseFloat(document.getElementById('driver_s').value) || 0;
     const diff = end - start;
     document.getElementById('driver_t').value = diff;
-    if (diff < 0) document.getElementById('driver_t').classList.add('is-invalid'); else document.getElementById('driver_t').classList.remove('is-invalid');
+    
+    // 🟢 ตรวจสอบว่า กม.ถึง ต้องมากกว่า กม.เริ่ม
+    if (diff <= 0 && document.getElementById('driver_s').value !== '') {
+        document.getElementById('driver_t').classList.add('is-invalid'); 
+    } else {
+        document.getElementById('driver_t').classList.remove('is-invalid');
+    }
   }
-  document.getElementById('driver_r').addEventListener('input', calcKM); document.getElementById('driver_s').addEventListener('input', calcKM);
+  
+  document.getElementById('driver_r').addEventListener('input', calcKM); 
+  document.getElementById('driver_s').addEventListener('input', calcKM);
   
   document.getElementById('formDriver').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const actSt = new Date(document.getElementById('driver_p').value); const actEn = new Date(document.getElementById('driver_q').value);
+    const actSt = new Date(document.getElementById('driver_p').value); 
+    const actEn = new Date(document.getElementById('driver_q').value);
     const diffKm = parseFloat(document.getElementById('driver_t').value);
+    
     if (actEn - actSt < 1800000) return Swal.fire('เวลาไม่ถูกต้อง', '"ขับถึงจริง" ต้องมากกว่า "ขับจริง" อย่างน้อย 30 นาที', 'error');
-    if (diffKm < 0) return Swal.fire('ระยะทางผิดพลาด', 'เลขกิโลเมตรถึง ต้องมากกว่ากิโลเมตรเริ่ม', 'error');
+    
+    // 🟢 ตรวจสอบก่อนส่งข้อมูล กม.ถึง ต้องมากกว่า กม.เริ่ม
+    if (diffKm <= 0) return Swal.fire('ระยะทางผิดพลาด', 'เลขกิโลเมตรถึง ต้องมากกว่ากิโลเมตรเริ่ม', 'error');
 
     await callAPI('driverReport', {
       id: document.getElementById('driver_id').value, actStart: document.getElementById('driver_p').value,
       actEnd: document.getElementById('driver_q').value, startKm: document.getElementById('driver_r').value,
       endKm: document.getElementById('driver_s').value, diffKm: diffKm, fuel: document.getElementById('driver_u').value, cost: document.getElementById('driver_v').value
     });
-    Swal.fire('สำเร็จ', 'บันทึกรายงานการขับรถเรียบร้อย', 'success'); modalDriver.hide(); loadData(); 
+    Swal.fire('สำเร็จ', 'บันทึกรายงานการขับรถเรียบร้อย', 'success'); 
+    modalDriver.hide(); 
+    loadData(); 
   });
 
   // --- ดูข้อมูล ---
@@ -608,7 +687,7 @@
   function initDashFY() {
     const fys = new Set();
     globalData.forEach(r => {
-      let dVal = r[15] || r[4]; // ใช้ ขับจริง (P) หรือ ขอวันที่ (E) ในการหาปี
+      let dVal = r[15] || r[4]; 
       if(dVal) {
         const d = new Date(dVal);
         if(!isNaN(d)) {
@@ -630,10 +709,8 @@
 
     const type = document.getElementById('dashFilterType').value;
     
-    // 🟢 ตัดรายการที่ ID ว่าง หรือ ถูก "ยกเลิก" ออกไปก่อนเลย
     let filteredData = globalData.filter(r => r[0] && !(r[12] && String(r[12]).includes('ยกเลิก')));
 
-    // กรองตามวันที่ โดยอิงจาก "ขับจริง (P)" หรือ "ขอวันที่ (E)"
     if (type === 'date') {
       const sd = new Date(document.getElementById('dashStartDate').value);
       const ed = new Date(document.getElementById('dashEndDate').value);
@@ -669,15 +746,13 @@
     const driverCounts = {};
     const carKMs = {}; 
 
-    // คำนวณข้อมูล
     filteredData.forEach(r => {
-      // 🟢 ใช้ "ขับจริง" และ "ขับถึงจริง" ในการคำนวณจำนวน
-      if (!r[15]) return; // ข้ามถ้ายังไม่ได้ขับจริง (ยังไม่ได้ลงรายงาน)
+      if (!r[15]) return; 
 
       let st = new Date(r[15]);
       if (isNaN(st)) return;
       let en = new Date(r[16]);
-      if (isNaN(en)) en = st; // ถ้าไม่มีขับถึงจริง ให้นับแค่วันเดียว
+      if (isNaN(en)) en = st; 
 
       let current = new Date(st);
       current.setHours(0,0,0,0);
@@ -685,7 +760,6 @@
       endDay.setHours(0,0,0,0);
       
       let daysCount = 0;
-      // วนลูปนับวัน (ถ้าข้ามวันจะนับให้ทุกวัน)
       while(current <= endDay) {
           const dateStr = `${('0'+current.getDate()).slice(-2)}/${('0'+(current.getMonth()+1)).slice(-2)}/${current.getFullYear()+543}`;
           dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
@@ -696,9 +770,8 @@
 
       const plate = r[13];
       if(plate) {
-         carCounts[plate] = (carCounts[plate] || 0) + daysCount; // เพิ่มยอดตามจำนวนวันที่ขับ
+         carCounts[plate] = (carCounts[plate] || 0) + daysCount; 
          
-         // 🟢 คำนวณ กม. รวม (มากสุด - น้อยสุด) ในช่วงเวลาที่เลือก
          const kmSt = parseFloat(r[17]);
          const kmEn = parseFloat(r[18]);
          if(!carKMs[plate]) carKMs[plate] = { min: Infinity, max: -Infinity };
@@ -708,7 +781,7 @@
 
       const driver = r[12];
       if(driver) {
-         driverCounts[driver] = (driverCounts[driver] || 0) + daysCount; // เพิ่มยอดตามจำนวนวันที่ขับ
+         driverCounts[driver] = (driverCounts[driver] || 0) + daysCount; 
       }
     });
 
@@ -720,7 +793,6 @@
       }
     }
 
-    // 🟢 วาดกราฟแนวนอน (horizontalBar)
     renderChart('chartDaily', 'line', 'จำนวนการใช้รถ (ครั้ง/วัน)', Object.keys(dailyCounts), Object.values(dailyCounts), '#0d6efd');
     renderChart('chartCarCount', 'horizontalBar', 'จำนวนครั้งที่ใช้รถแต่ละคัน (นับตามวัน)', Object.keys(carCounts), Object.values(carCounts), '#198754');
     renderChart('chartDriverCount', 'horizontalBar', 'จำนวนครั้งของ พขร. (นับตามวัน)', Object.keys(driverCounts), Object.values(driverCounts), '#ffc107');
@@ -731,12 +803,11 @@
     if(charts[canvasId]) charts[canvasId].destroy();
     const ctx = document.getElementById(canvasId).getContext('2d');
     
-    // ตั้งค่ารักษาสเกลกราฟให้อยู่ใน div ที่กำหนด
     let options = { responsive: true, maintainAspectRatio: false };
     
     if(type === 'horizontalBar') {
        type = 'bar';
-       options.indexAxis = 'y'; // 🟢 เปลี่ยนกราฟแท่งเป็นแนวนอน
+       options.indexAxis = 'y'; 
        options.scales = { x: { beginAtZero: true } };
     } else {
        options.scales = { y: { beginAtZero: true } };
@@ -751,33 +822,17 @@
       options: options
     });
   }
-  // ================= 🟢 ระบบป้องกันการคัดลอก (Anti-Copy) =================
   
-  // 1. ป้องกันการคลิกขวา
-  document.addEventListener('contextmenu', function(e) {
-    e.preventDefault();
-  });
-
-  // 2. ป้องกันการคลิกเพื่อ Copy
+  // ================= 🟢 ระบบป้องกันการคัดลอก (Anti-Copy) =================
+  document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
   document.addEventListener('copy', function(e) {
     e.preventDefault();
     Swal.fire({ icon: 'warning', title: 'สงวนลิขสิทธิ์', text: 'ไม่อนุญาตให้คัดลอกข้อมูล @narongkanchanpibul2026', timer: 1500, showConfirmButton: false });
   });
-
-  // 3. ป้องกันการกดปุ่มลัดต่างๆ (Ctrl+C, Ctrl+U, F12)
   document.addEventListener('keydown', function(e) {
-    // ป้องกัน F12 (เครื่องมือนักพัฒนา)
-    if (e.key === 'F12') {
-      e.preventDefault();
-    }
-    // ป้องกัน Ctrl+Shift+I / Ctrl+Shift+J / Ctrl+U (ดู Source Code)
-    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) {
-      e.preventDefault();
-    }
-    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) {
-      e.preventDefault();
-    }
-    // ป้องกัน Ctrl+C (คัดลอก)
+    if (e.key === 'F12') { e.preventDefault(); }
+    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) { e.preventDefault(); }
+    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); }
     if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
       e.preventDefault();
       Swal.fire({ icon: 'warning', title: 'สงวนลิขสิทธิ์', text: 'ไม่อนุญาตให้คัดลอกข้อมูล @narongkanchanpibul2026', timer: 1500, showConfirmButton: false });
