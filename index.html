@@ -268,7 +268,7 @@
 
 <script>
   // *** ใส่ URL Web App ของคุณที่อัปเดตใหม่ล่าสุดตรงนี้ ***
-  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxLLljERSMBE396uaQzkuwXNrff-0snR4QS1FcAKwXpY-amyOPJ-rXmGxe-uxkPrVBnDw/exec'; 
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx2DpLmNY-lOVOCtn2kHwiMkecL2kzGlhoyvGLqU6ZYs_gIP5aJmaSZiGurto_3Uxfx/exec'; 
   
   let globalData = []; let carList = []; let userList = []; 
   let unlockedAssign = false; let unlockedDriver = false; let unlockedOil = false;
@@ -390,23 +390,26 @@ function switchPage(pageId, tabElement) {
   });
 
 // 🟢 เพิ่มพารามิเตอร์ silent เพื่อบอกว่าต้องโชว์หน้าต่างโหลดไหม (ค่าเริ่มต้นคือ โหลดเงียบๆ)
-  async function loadData(silent = true) {
+async function loadData(silent = true) {
     if (!silent) Swal.fire({ title: 'กำลังดึงข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     
     try {
       const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
       const json = await res.json();
-      globalData = json.data;
       
+      // เช็คว่า Apps Script ส่ง status success กลับมาไหม
+      if (json.status !== 'success') throw new Error(json.message);
+      
+      globalData = json.data || []; // ป้องกันค่าเป็น undefined
       renderTables();
       
-      // 🟢 สำคัญ: ถ้าเปิดหน้าปฏิทินหรือแดชบอร์ดค้างไว้ พอข้อมูลมาถึงให้มันวาดใหม่ทันที (แก้ปัญหาหน้าขาว)
       if (document.getElementById('page-calendar').classList.contains('active')) renderCalendar();
       if (document.getElementById('page-dashboard').classList.contains('active')) updateDashboard();
       
       if (!silent) Swal.close();
     } catch (err) { 
-      if (!silent) Swal.fire('ข้อผิดพลาด', 'โหลดข้อมูลไม่สำเร็จ', 'error'); 
+      console.error("Load Data Error:", err);
+      if (!silent) Swal.fire('ข้อผิดพลาด', 'โหลดข้อมูลไม่สำเร็จ: ' + err.message, 'error'); 
     }
   }
 
@@ -537,19 +540,20 @@ async function loadOilData(silent = true) {
     try {
       const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getOilData' }) });
       const json = await res.json();
+      
       if(json.status !== 'success') throw new Error(json.message);
       
       const d = json.data;
-      $('#oilBalanceDisplay').text(parseFloat(d.balance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
-      oilPendingList = d.pending;
-      oilHistoryList = d.history;
+      $('#oilBalanceDisplay').text(parseFloat(d.balance || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+      oilPendingList = d.pending || [];
+      oilHistoryList = d.history || [];
       
       if (!silent) Swal.close();
     } catch(err) { 
-      if (!silent) Swal.fire('ผิดพลาด', err.message, 'error'); 
+      console.error("Load Oil Data Error:", err);
+      if (!silent) Swal.fire('ผิดพลาดระบบน้ำมัน', err.message, 'error'); 
     }
   }
-
   function toggleOilType() {
     const type = $('#oilType').val();
     if(type === 'out') {
