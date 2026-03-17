@@ -339,13 +339,18 @@
       }
     }
     
-    if (pageId === 'page-oil') loadOilData(); 
-    else if (pageId !== 'page-request') loadData();
+    // โหลดข้อมูลน้ำมันเฉพาะถ้าเพิ่งเปิดหน้านี้ครั้งแรก
+    if (pageId === 'page-oil' && oilHistoryList.length === 0) {
+      loadOilData(); 
+    } 
     
+    // สั่งวาดปฏิทินและกราฟทันทีจากข้อมูลที่มีอยู่แล้ว (ไม่โหลดใหม่ให้ช้า)
     if (pageId === 'page-calendar') {
       if (!calendar) renderCalendar(); else setTimeout(() => calendar.render(), 100);
     }
-    if (pageId === 'page-dashboard') updateDashboard();
+    if (pageId === 'page-dashboard') {
+      updateDashboard();
+    }
   }
 
   async function checkLoginAndSwitch(pageId, tabElement) {
@@ -379,16 +384,23 @@
     Swal.fire('สำเร็จ', `สร้างคำขอสำเร็จ ID: ${res.data.id}`, 'success'); e.target.reset();
   });
 
-  async function loadData() {
+async function loadData() {
     if(document.getElementById('page-oil').classList.contains('active')) return;
-    Swal.fire({ title: 'กำลังโหลด...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    
     try {
+      // ใช้ callAPI ตัวเดียวพอ จะได้ไม่มีหน้าต่างโหลดตีกัน
       const res = await callAPI('getData');
-      globalData = res.data; renderTables();
+      globalData = res.data; 
+      renderTables();
+      
       if($('#page-calendar').hasClass('active')) renderCalendar();
       if($('#page-dashboard').hasClass('active')) updateDashboard();
-      Swal.close();
-    } catch (err) { }
+      
+      // ปิดหน้าต่างโหลดเมื่อดึงข้อมูลเสร็จสมบูรณ์
+      Swal.close(); 
+    } catch (err) { 
+      console.error(err);
+    }
   }
 
   function formatDateUI(dStr) {
@@ -512,19 +524,18 @@
   const modalOilApp = new bootstrap.Modal(document.getElementById('modalOilApprove'));
   const modalOilRep = new bootstrap.Modal(document.getElementById('modalOilReport'));
 
-  async function loadOilData() {
-    Swal.fire({ title: 'โหลดข้อมูลน้ำมัน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+async function loadOilData() {
     try {
-      const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getOilData' }) });
-      const data = await res.json();
-      if(data.status !== 'success') throw new Error(data.message);
-      
-      const d = data.data;
+      const res = await callAPI('getOilData');
+      const d = res.data;
       $('#oilBalanceDisplay').text(parseFloat(d.balance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
       oilPendingList = d.pending;
       oilHistoryList = d.history;
-      Swal.close();
-    } catch(err) { Swal.fire('ผิดพลาด', err.message, 'error'); }
+      
+      Swal.close(); // ปิดหน้าต่างโหลด
+    } catch(err) { 
+      console.error(err);
+    }
   }
 
   function toggleOilType() {
