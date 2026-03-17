@@ -13,36 +13,20 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
   
   <style>
-    body { background-color: #f4f7f6; font-family: 'Sarabun', sans-serif; }
-    .nav-pills .nav-link.active { background-color: #0d6efd; }
+    body { background-color: #f4f7f6; font-family: 'Sarabun', sans-serif; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; }
+    input, textarea, select { -webkit-user-select: auto; -moz-user-select: auto; -ms-user-select: auto; user-select: auto; }
+    .nav-pills .nav-link.active { background-color: #0d6efd; color: white; }
     .nav-link { cursor: pointer; color: #495057; font-weight: bold; }
     .page-section { display: none; padding: 20px 0; }
     .page-section.active { display: block; }
     .card { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
-    .chart-container { position: relative; height: 300px; width: 100%; } /* สำหรับคุมขนาดกราฟแนวนอน */
-    body { 
-      background-color: #f4f7f6; 
-      font-family: 'Sarabun', sans-serif; 
-      
-      /* 🟢 ป้องกันการลากคลุมดำ */
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-    }
-    
-    /* 🟢 ยกเว้นให้ช่องกรอกข้อมูลยังพิมพ์และคลุมดำเพื่อลบได้ */
-    input, textarea, select {
-      -webkit-user-select: auto;
-      -moz-user-select: auto;
-      -ms-user-select: auto;
-      user-select: auto;
-    }
+    .chart-container { position: relative; height: 300px; width: 100%; }
+    .sig-canvas { border: 1px solid #ced4da; border-radius: 6px; width: 100%; height: 150px; background: #f8f9fa; touch-action: none; cursor: crosshair; }
   </style>
 </head>
 <body>
 
-<div class="d-flex justify-content-center align-items-center mb-4">
+<div class="d-flex justify-content-center align-items-center mb-4 mt-3">
     <img src="logo.png" alt="Logo" style="height: 50px; margin-right: 15px; border-radius: 6px;">
     <h2 class="text-primary m-0">ระบบบริหารรถยนต์โรงพยาบาลไทรโยค</h2>
 </div>
@@ -50,9 +34,19 @@
   <ul class="nav nav-pills justify-content-center mb-4" id="menuTabs">
     <li class="nav-item"><a class="nav-link active" onclick="switchPage('page-request', this)">📝 ขอใช้รถ</a></li>
     <li class="nav-item"><a class="nav-link" onclick="switchPage('page-calendar', this)">🗓️ ปฏิทิน</a></li>
-    <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-assign', this)">🔑 จัดรถ</a></li>
-    <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-driver', this)">👨‍✈️ รายงาน พขร.</a></li>
-    <li class="nav-item"><a class="nav-link" onclick="checkLoginAndSwitch('page-report', this)">📊 รายงานทั้งหมด</a></li>
+    
+    <li class="nav-item dropdown">
+      <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">⚙️ จัดการระบบรถ</a>
+      <ul class="dropdown-menu shadow-sm" style="border-radius: 8px; border: none;">
+        <li><a class="dropdown-item py-2" onclick="checkLoginAndSwitch('page-assign', this)">🔑 จัดรถ</a></li>
+        <li><a class="dropdown-item py-2" onclick="checkLoginAndSwitch('page-driver', this)">👨‍✈️ รายงาน พขร.</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item py-2" onclick="checkLoginAndSwitch('page-report', this)">📊 รายงานทั้งหมด</a></li>
+      </ul>
+    </li>
+
+    <li class="nav-item"><a class="nav-link text-danger" onclick="switchPage('page-oil', this)">⛽ ระบบน้ำมัน</a></li>
+
     <li class="nav-item"><a class="nav-link" onclick="switchPage('page-dashboard', this)">📈 แดชบอร์ด</a></li>
   </ul>
 
@@ -61,15 +55,8 @@
       <h4 class="mb-4">แบบฟอร์มขอใช้รถ</h4>
       <form id="formRequest">
         <div class="row mb-3">
-          <div class="col-md-6">
-            <label>ผู้ขอ</label>
-            <input list="listReqC" id="req_c" class="form-control" placeholder="พิมพ์เพื่อค้นหา..." required>
-            <datalist id="listReqC"></datalist>
-          </div>
-          <div class="col-md-6">
-            <label>กลุ่มงาน</label>
-            <input type="text" id="req_d" class="form-control" readonly placeholder="จะขึ้นอัตโนมัติเมื่อเลือกผู้ขอ">
-          </div>
+          <div class="col-md-6"><label>ผู้ขอ</label><input list="listReqC" id="req_c" class="form-control" required><datalist id="listReqC"></datalist></div>
+          <div class="col-md-6"><label>กลุ่มงาน</label><input type="text" id="req_d" class="form-control" readonly></div>
         </div>
         <div class="row mb-3">
           <div class="col-md-6"><label>ขอวันที่</label><input type="datetime-local" id="req_e" class="form-control" required></div>
@@ -103,190 +90,176 @@
     </div>
   </div>
 
-  <div id="page-calendar" class="page-section">
-    <div class="card p-4">
-      <h4 class="mb-3">ตารางคิวการใช้รถ</h4>
-      <div id="calendar"></div>
-    </div>
-  </div>
+  <div id="page-calendar" class="page-section"><div class="card p-4"><h4 class="mb-3">ตารางคิวการใช้รถ</h4><div id="calendar"></div></div></div>
 
   <div id="page-assign" class="page-section">
     <div class="card p-4">
-      <h4 class="mb-3">รายการรอจัดรถ</h4>
-      <div class="table-responsive">
-        <table id="tableAssign" class="table table-striped w-100">
-          <thead><tr><th>จัดการ</th><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>เรื่อง</th><th>สถานที่</th><th>ประเภทรถ</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
+      <h4 class="mb-3">รายการจัดรถ</h4>
+      <div class="table-responsive"><table id="tableAssign" class="table table-striped w-100"><thead><tr><th>จัดการ</th><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>เรื่อง</th><th>สถานที่</th><th>ประเภทรถ</th></tr></thead><tbody></tbody></table></div>
     </div>
   </div>
 
   <div id="page-driver" class="page-section">
     <div class="card p-4">
       <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="mb-0">รายการรอลงบันทึกการขับรถ</h4>
-        <select id="filterDriver" class="form-select w-auto">
-          <option value="">-- กรองผู้ขับรถทั้งหมด --</option>
-        </select>
+        <h4 class="mb-0">รายการบันทึกการขับรถ</h4><select id="filterDriver" class="form-select w-auto"><option value="">-- กรองผู้ขับรถทั้งหมด --</option></select>
       </div>
-      <div class="table-responsive">
-        <table id="tableDriver" class="table table-striped w-100">
-          <thead><tr><th>จัดการ</th><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>สถานที่</th><th>ผู้ขับรถ</th><th>ทะเบียน</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
+      <div class="table-responsive"><table id="tableDriver" class="table table-striped w-100"><thead><tr><th>จัดการ</th><th>ID</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>สถานที่</th><th>ผู้ขับรถ</th><th>ทะเบียน</th></tr></thead><tbody></tbody></table></div>
     </div>
   </div>
 
   <div id="page-report" class="page-section">
     <div class="card p-4">
       <h4 class="mb-3">ประวัติการใช้รถทั้งหมด</h4>
-      <div class="table-responsive">
-        <table id="tableReport" class="table table-striped w-100">
-          <thead><tr><th>ดูข้อมูล</th><th>ID</th><th>สถานะ</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>สถานที่</th><th>คนขับ</th><th>ทะเบียน</th><th>กม.ไป-กลับ</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
+      <div class="table-responsive"><table id="tableReport" class="table table-striped w-100"><thead><tr><th>ดูข้อมูล</th><th>ID</th><th>สถานะ</th><th>ขอวันที่</th><th>ถึงวันที่</th><th>ผู้ขอ</th><th>สถานที่</th><th>คนขับ</th><th>ทะเบียน</th><th>กม.ไป-กลับ</th></tr></thead><tbody></tbody></table></div>
     </div>
   </div>
 
   <div id="page-dashboard" class="page-section">
     <div class="card p-4">
       <h4 class="mb-3 text-primary">📈 แดชบอร์ดสรุปข้อมูลการใช้รถ</h4>
-      
       <div class="row align-items-end mb-4 bg-light p-3 rounded shadow-sm">
         <div class="col-md-3 mb-2 mb-md-0">
           <label class="form-label text-muted">รูปแบบการดูข้อมูล:</label>
-          <select id="dashFilterType" class="form-select" onchange="toggleDashFilters()">
-            <option value="all">ดูข้อมูลทั้งหมด</option>
-            <option value="date">ระบุช่วงวันที่</option>
-            <option value="month">รายเดือน</option>
-            <option value="fy">ปีงบประมาณ</option>
-          </select>
+          <select id="dashFilterType" class="form-select" onchange="toggleDashFilters()"><option value="all">ดูข้อมูลทั้งหมด</option><option value="date">ระบุช่วงวันที่</option><option value="month">รายเดือน</option><option value="fy">ปีงบประมาณ</option></select>
         </div>
-        
         <div class="col-md-7 mb-2 mb-md-0" id="dashFilterInputs">
-          <div id="f-date" style="display:none;" class="row">
-            <div class="col-6"><label class="form-label text-muted">ตั้งแต่วันที่</label><input type="date" id="dashStartDate" class="form-control"></div>
-            <div class="col-6"><label class="form-label text-muted">ถึงวันที่</label><input type="date" id="dashEndDate" class="form-control"></div>
-          </div>
-          <div id="f-month" style="display:none;">
-            <label class="form-label text-muted">เลือกเดือน-ปี</label><input type="month" id="dashMonth" class="form-control">
-          </div>
-          <div id="f-fy" style="display:none;">
-            <label class="form-label text-muted">เลือกปีงบประมาณ (พ.ศ.)</label>
-            <select id="dashFY" class="form-select"></select>
-          </div>
+          <div id="f-date" style="display:none;" class="row"><div class="col-6"><label class="form-label text-muted">ตั้งแต่วันที่</label><input type="date" id="dashStartDate" class="form-control"></div><div class="col-6"><label class="form-label text-muted">ถึงวันที่</label><input type="date" id="dashEndDate" class="form-control"></div></div>
+          <div id="f-month" style="display:none;"><label class="form-label text-muted">เลือกเดือน-ปี</label><input type="month" id="dashMonth" class="form-control"></div>
+          <div id="f-fy" style="display:none;"><label class="form-label text-muted">เลือกปีงบประมาณ (พ.ศ.)</label><select id="dashFY" class="form-select"></select></div>
         </div>
-        
-        <div class="col-md-2">
-          <button class="btn btn-primary w-100" onclick="updateDashboard()">🔍 กรองข้อมูล</button>
-        </div>
+        <div class="col-md-2"><button class="btn btn-primary w-100" onclick="updateDashboard()">🔍 กรองข้อมูล</button></div>
       </div>
-
       <div class="row">
-        <div class="col-md-12 mb-4">
-          <div class="card p-3 shadow-sm border-0">
-            <div class="chart-container"><canvas id="chartDaily"></canvas></div>
-          </div>
-        </div>
-        <div class="col-md-4 mb-4">
-          <div class="card p-3 shadow-sm border-0">
-            <div class="chart-container"><canvas id="chartCarCount"></canvas></div>
-          </div>
-        </div>
-        <div class="col-md-4 mb-4">
-          <div class="card p-3 shadow-sm border-0">
-            <div class="chart-container"><canvas id="chartDriverCount"></canvas></div>
-          </div>
-        </div>
-        <div class="col-md-4 mb-4">
-          <div class="card p-3 shadow-sm border-0">
-            <div class="chart-container"><canvas id="chartCarKm"></canvas></div>
-          </div>
-        </div>
+        <div class="col-md-12 mb-4"><div class="card p-3 shadow-sm border-0"><div class="chart-container"><canvas id="chartDaily"></canvas></div></div></div>
+        <div class="col-md-4 mb-4"><div class="card p-3 shadow-sm border-0"><div class="chart-container"><canvas id="chartCarCount"></canvas></div></div></div>
+        <div class="col-md-4 mb-4"><div class="card p-3 shadow-sm border-0"><div class="chart-container"><canvas id="chartDriverCount"></canvas></div></div></div>
+        <div class="col-md-4 mb-4"><div class="card p-3 shadow-sm border-0"><div class="chart-container"><canvas id="chartCarKm"></canvas></div></div></div>
       </div>
     </div>
   </div>
 
-</div>
+  <div id="page-oil" class="page-section">
+    <div class="card p-4 mx-auto text-center shadow-sm" style="max-width: 650px;">
+       <h3 class="mb-4 text-danger fw-bold">⛽ ระบบจัดการน้ำมัน</h3>
+       <div class="mb-4 p-4 rounded" style="background-color: #f8d7da; border: 1px solid #f5c2c7;">
+          <h5 class="text-danger">ยอดน้ำมันคงเหลือในคลัง (ลิตร)</h5>
+          <h1 class="display-2 fw-bold text-dark mt-2" id="oilBalanceDisplay">0.00</h1>
+          <small class="text-muted">*คำนวณจากรายการที่ผ่านการอนุมัติแล้วเท่านั้น</small>
+       </div>
+       <div class="d-grid gap-3">
+          <button class="btn btn-danger btn-lg" onclick="openOilRequest()">📝 1. บันทึก นำเข้า / เบิกออกน้ำมัน</button>
+          <button class="btn btn-success btn-lg" onclick="checkLoginOilApprove()">✅ 2. อนุมัติรายการ (ผู้มีสิทธิ์)</button>
+          <button class="btn btn-secondary btn-lg" onclick="openOilReport()">📊 3. รายงานประวัติน้ำมันทั้งหมด</button>
+       </div>
+    </div>
+  </div>
 
-<div class="modal fade" id="modalAssign" tabindex="-1">
+</div> <div class="modal fade" id="modalAssign" tabindex="-1"><div class="modal-dialog"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">🔑 จัดรถ (ID: <span id="assign_id_lbl"></span>)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="formAssign"><input type="hidden" id="assign_id"><div class="mb-3"><label>ผู้ขับรถ</label><select id="assign_m" class="form-select" required><option value="" disabled selected>โหลดข้อมูล...</option></select></div><div class="mb-3"><label>ทะเบียน</label><select id="assign_n" class="form-select" required><option value="" disabled selected>โหลดข้อมูล...</option></select></div><div class="mb-3"><label>รุ่น</label><input type="text" id="assign_o" class="form-control" readonly></div><button type="submit" class="btn btn-success w-100">บันทึกการจัดรถ</button></form></div></div></div></div>
+
+<div class="modal fade" id="modalDriver" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">👨‍✈️ บันทึกการขับรถ (ID: <span id="driver_id_lbl"></span>)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><form id="formDriver"><input type="hidden" id="driver_id"><div class="row mb-3"><div class="col-md-6"><label>ขับจริง</label><input type="datetime-local" id="driver_p" class="form-control" required></div><div class="col-md-6"><label>ขับถึงจริง</label><input type="datetime-local" id="driver_q" class="form-control" required></div></div><div class="row mb-3"><div class="col-md-4"><label>กม. เริ่ม</label><input type="number" id="driver_r" class="form-control" required></div><div class="col-md-4"><label>กม. ถึง</label><input type="number" id="driver_s" class="form-control" required></div><div class="col-md-4"><label>ผลต่าง</label><input type="number" id="driver_t" class="form-control" readonly></div></div><div class="row mb-3"><div class="col-md-6"><label>เติมน้ำมัน (ลิตร)</label><input type="number" step="0.01" id="driver_u" class="form-control"></div><div class="col-md-6"><label>เป็นเงิน (บาท)</label><input type="number" step="0.01" id="driver_v" class="form-control"></div></div><button type="submit" class="btn btn-success w-100">บันทึกรายงาน</button></form></div></div></div></div>
+
+<div class="modal fade" id="modalView" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">📄 รายละเอียด (ID: <span id="view_id_lbl"></span>)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div id="viewBody" class="row"></div></div><div class="modal-footer d-flex justify-content-between"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button><button type="button" class="btn btn-primary" id="btnPrintDoc" onclick="printDoc()">🖨️ เปิดเอกสาร Google Doc</button></div></div></div></div>
+
+
+<div class="modal fade" id="modalOilRequest" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">🔑 จัดรถ (ID: <span id="assign_id_lbl"></span>)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header bg-danger text-white"><h5 class="modal-title">📝 บันทึก นำเข้า/เบิกออก น้ำมัน</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
-        <form id="formAssign">
-          <input type="hidden" id="assign_id">
+        <form id="formOilRequest">
           <div class="mb-3">
-            <label>ผู้ขับรถ</label>
-            <select id="assign_m" class="form-select" required><option value="" disabled selected>โหลดข้อมูล...</option></select>
+            <label class="fw-bold text-primary">ประเภทรายการ</label>
+            <select id="oilType" class="form-select fw-bold" onchange="toggleOilType()" required>
+              <option value="" disabled selected>เลือกประเภท...</option>
+              <option value="in">📥 นำเข้าคลัง</option>
+              <option value="out">📤 เบิกออกไปใช้</option>
+            </select>
           </div>
           <div class="mb-3">
-            <label>ทะเบียน</label>
-            <select id="assign_n" class="form-select" required><option value="" disabled selected>โหลดข้อมูล...</option></select>
+            <label>จำนวน (ลิตร)</label>
+            <input type="number" step="0.01" id="oilQty" class="form-control form-control-lg text-center fw-bold" required>
+          </div>
+          <div class="mb-3" id="oilCarDiv" style="display:none;">
+            <label>ใช้ที่ (รถทะเบียน)</label>
+            <select id="oilCar" class="form-select"><option value="">-- ไม่ระบุ / โหลดข้อมูล... --</option></select>
           </div>
           <div class="mb-3">
-            <label>รุ่น</label>
-            <input type="text" id="assign_o" class="form-control" readonly placeholder="รุ่นรถจะขึ้นอัตโนมัติ">
+            <label>รายละเอียด / วัตถุประสงค์</label>
+            <textarea id="oilDetail" class="form-control" rows="2" required></textarea>
           </div>
-          <button type="submit" class="btn btn-success w-100">บันทึกการจัดรถ</button>
+          <div class="mb-3">
+            <label>ลายเซ็นผู้นำเข้า/เบิกออก</label>
+            <canvas id="sigCanvas1" class="sig-canvas"></canvas>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-1 w-100" onclick="clearCanvas(sigPad1)">ล้างลายเซ็น</button>
+          </div>
+          <button type="submit" class="btn btn-danger w-100 py-2 fs-5">ส่งรายการ (รออนุมัติ)</button>
         </form>
       </div>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="modalDriver" tabindex="-1">
-  <div class="modal-dialog modal-lg">
+<div class="modal fade" id="modalOilPending" tabindex="-1">
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">👨‍✈️ บันทึกการขับรถ (ID: <span id="driver_id_lbl"></span>)</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-header bg-success text-white"><h5 class="modal-title">✅ รายการรอนุมัติ</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
-        <form id="formDriver">
-          <input type="hidden" id="driver_id">
-          <div class="row mb-3">
-            <div class="col-md-6"><label>ขับจริง</label><input type="datetime-local" id="driver_p" class="form-control" required></div>
-            <div class="col-md-6"><label>ขับถึงจริง</label><input type="datetime-local" id="driver_q" class="form-control" required></div>
+        <div class="table-responsive">
+          <table id="tableOilPending" class="table table-bordered table-hover w-100 text-center align-middle">
+            <thead class="table-light"><tr><th>จัดการ</th><th>วันที่/เวลา</th><th>ประเภท</th><th>จำนวน</th><th>ใช้ที่รถ</th><th>รายละเอียด</th><th>ลายเซ็นผู้ขอ</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalOilApprove" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content border-success">
+      <div class="modal-header bg-success text-white"><h5 class="modal-title">เซ็นอนุมัติรายการ</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="formOilApprove">
+          <input type="hidden" id="oilApproveRow">
+          <div class="alert alert-warning text-center" id="oilApproveSummary"></div>
+          <div class="mb-3">
+            <label>หมายเหตุ (ถ้ามี)</label>
+            <textarea id="oilNote" class="form-control" rows="2"></textarea>
           </div>
-          <div class="row mb-3">
-            <div class="col-md-4"><label>กม. เริ่ม</label><input type="number" id="driver_r" class="form-control" required></div>
-            <div class="col-md-4"><label>กม. ถึง</label><input type="number" id="driver_s" class="form-control" required></div>
-            <div class="col-md-4"><label>ผลต่าง</label><input type="number" id="driver_t" class="form-control" readonly></div>
+          <div class="mb-3">
+            <label>ลายเซ็นผู้อนุมัติ</label>
+            <canvas id="sigCanvas2" class="sig-canvas"></canvas>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-1 w-100" onclick="clearCanvas(sigPad2)">ล้างลายเซ็น</button>
           </div>
-          <div class="row mb-3">
-            <div class="col-md-6"><label>เติมน้ำมัน (ลิตร)</label><input type="number" step="0.01" id="driver_u" class="form-control"></div>
-            <div class="col-md-6"><label>เป็นเงิน (บาท)</label><input type="number" step="0.01" id="driver_v" class="form-control"></div>
-          </div>
-          <button type="submit" class="btn btn-success w-100">บันทึกรายงาน</button>
+          <button type="submit" class="btn btn-success w-100 py-2 fs-5">อนุมัติและอัปเดตยอดคงเหลือ</button>
         </form>
       </div>
     </div>
   </div>
 </div>
 
-<div class="modal fade" id="modalView" tabindex="-1">
-  <div class="modal-dialog modal-lg">
+<div class="modal fade" id="modalOilReport" tabindex="-1">
+  <div class="modal-dialog modal-xl">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">📄 รายละเอียดการใช้รถ (ID: <span id="view_id_lbl"></span>)</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
+      <div class="modal-header bg-secondary text-white"><h5 class="modal-title">📊 รายงานประวัติน้ำมัน</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button></div>
       <div class="modal-body">
-        <div id="viewBody" class="row"></div>
-      </div>
-      <div class="modal-footer d-flex justify-content-between">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
-        <button type="button" class="btn btn-primary" id="btnPrintDoc" onclick="printDoc()">🖨️ เปิดเอกสาร Google Doc</button>
+        <div class="table-responsive">
+          <table id="tableOilReport" class="table table-striped w-100 align-middle text-center" style="font-size:0.9rem;">
+            <thead class="table-dark"><tr><th>สถานะ</th><th>วันที่</th><th>นำเข้า</th><th>เบิกออก</th><th>คงเหลือ</th><th>ใช้ที่รถ</th><th>รายละเอียด</th><th>ผู้ขอ</th><th>ผู้อนุมัติ</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
 <div class="text-center text-muted mt-5 mb-4" style="font-size: 0.9rem;">
-    &copy; 2026 ระบบบริหารรถยนต์โรงพยาบาลไทรโยค<br>
-    ออกแบบและพัฒนาโดย <b>@narongkanchanpibul2026</b><br>
-    สงวนลิขสิทธิ์ ห้ามคัดลอกหรือดัดแปลงโดยไม่ได้รับอนุญาต
-  </div>
+    &copy; 2026 ระบบบริหารรถยนต์โรงพยาบาลไทรโยค<br>ออกแบบและพัฒนาโดย <b>@narongkanchanpibul2026</b>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -294,16 +267,18 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
-  // *** ใส่ URL Web App ของคุณ ***
-  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzDmq3jkZjTdlY7RoNuSefWxLo6Fk5lpDDOiQQUp9GoGpXSY0IfQKAbH3HU_8vt1R0rgw/exec'; 
+  // *** ใส่ URL Web App ของคุณที่อัปเดตใหม่ล่าสุดตรงนี้ ***
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxLLljERSMBE396uaQzkuwXNrff-0snR4QS1FcAKwXpY-amyOPJ-rXmGxe-uxkPrVBnDw/exec'; 
   
-  let globalData = []; 
-  let carList = []; 
-  let userList = []; 
-  let unlockedAssign = false; 
-  let unlockedDriver = false; 
-  let calendar; 
-  let charts = {}; 
+  let globalData = []; let carList = []; let userList = []; 
+  let unlockedAssign = false; let unlockedDriver = false; let unlockedOil = false;
+  let calendar; let charts = {}; 
+
+  // ข้อมูลน้ำมัน
+  let oilPendingList = []; let oilHistoryList = [];
+
+  // ระบบวาดลายเซ็น (Canvas)
+  let sigPad1, sigPad2;
 
   async function loadOptions() {
     try {
@@ -313,72 +288,80 @@
         const d = json.data;
         userList = d.users;
         const listReqC = document.getElementById('listReqC');
-        listReqC.innerHTML = '';
-        userList.forEach(u => listReqC.innerHTML += `<option value="${u.name}">`);
-
+        listReqC.innerHTML = ''; userList.forEach(u => listReqC.innerHTML += `<option value="${u.name}">`);
         populateSelect('assign_m', d.drivers, 'เลือกผู้ขับรถ');
         populateSelect('filterDriver', d.drivers, '-- กรองผู้ขับรถทั้งหมด --'); 
         
         carList = d.cars;
         const plateSelect = document.getElementById('assign_n');
+        const oilCarSelect = document.getElementById('oilCar');
         plateSelect.innerHTML = '<option value="" disabled selected>เลือกทะเบียนรถ</option>';
-        carList.forEach(c => plateSelect.innerHTML += `<option value="${c.plate}">${c.plate}</option>`);
+        oilCarSelect.innerHTML = '<option value="">-- เลือกทะเบียนรถ --</option>';
+        carList.forEach(c => {
+          plateSelect.innerHTML += `<option value="${c.plate}">${c.plate}</option>`;
+          oilCarSelect.innerHTML += `<option value="${c.plate}">${c.plate}</option>`;
+        });
       }
     } catch(err) { console.error(err); }
   }
 
   document.getElementById('req_c').addEventListener('input', function() {
      const selectedUser = userList.find(u => u.name === this.value);
-     if(selectedUser) document.getElementById('req_d').value = selectedUser.group;
-     else document.getElementById('req_d').value = ''; 
+     document.getElementById('req_d').value = selectedUser ? selectedUser.group : ''; 
   });
 
   function populateSelect(id, arr, placeholder) {
-    const el = document.getElementById(id);
-    el.innerHTML = `<option value="" selected>${placeholder}</option>`;
+    const el = document.getElementById(id); el.innerHTML = `<option value="" selected>${placeholder}</option>`;
     arr.forEach(item => el.innerHTML += `<option value="${item}">${item}</option>`);
   }
-
   document.getElementById('assign_n').addEventListener('change', function() {
      const selectedCar = carList.find(c => c.plate === this.value);
      if(selectedCar) document.getElementById('assign_o').value = selectedCar.model;
   });
 
   window.onload = () => {
-    loadOptions();
-    loadData(); 
+    loadOptions(); loadData(); 
+    // Init Signature Pads
+    sigPad1 = initCanvas('sigCanvas1');
+    sigPad2 = initCanvas('sigCanvas2');
   };
 
   function switchPage(pageId, tabElement) {
     document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
-    document.getElementById(pageId).classList.add('active');
-    if (tabElement) tabElement.classList.add('active');
+    document.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
     
-    if (pageId !== 'page-request') loadData();
+    document.getElementById(pageId).classList.add('active');
+    if (tabElement) {
+      tabElement.classList.add('active');
+      if (tabElement.classList.contains('dropdown-item')) {
+        tabElement.closest('.nav-item').querySelector('.nav-link').classList.add('active');
+      }
+    }
+    
+    if (pageId === 'page-oil') loadOilData(); 
+    else if (pageId !== 'page-request') loadData();
+    
     if (pageId === 'page-calendar') {
-      if (!calendar) renderCalendar(); 
-      else setTimeout(() => calendar.render(), 100);
+      if (!calendar) renderCalendar(); else setTimeout(() => calendar.render(), 100);
     }
     if (pageId === 'page-dashboard') updateDashboard();
   }
 
   async function checkLoginAndSwitch(pageId, tabElement) {
     if (pageId === 'page-assign' && !unlockedAssign) {
-      const { value: pass } = await Swal.fire({ title: '🔑 ปลดล็อกหน้าจัดรถ', input: 'password', inputPlaceholder: 'ใส่รหัสผ่าน...', showCancelButton: true });
-      if (pass === '11278') { unlockedAssign = true; Swal.fire('สำเร็จ', 'ปลดล็อกเรียบร้อย', 'success'); } 
-      else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง!', 'error'); return; }
+      const { value: pass } = await Swal.fire({ title: '🔑 จัดรถ', input: 'password', showCancelButton: true });
+      if (pass === '11278') { unlockedAssign = true; Swal.fire('สำเร็จ', 'ปลดล็อก', 'success'); } else return Swal.fire('ผิดพลาด', 'รหัสผิด!', 'error');
     }
     if (pageId === 'page-driver' && !unlockedDriver) {
-      const { value: pass } = await Swal.fire({ title: '👨‍✈️ ปลดล็อกหน้า พขร.', input: 'password', inputPlaceholder: 'ใส่รหัสผ่าน...', showCancelButton: true });
-      if (pass === '1234') { unlockedDriver = true; Swal.fire('สำเร็จ', 'ปลดล็อกเรียบร้อย', 'success'); } 
-      else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง!', 'error'); return; }
+      const { value: pass } = await Swal.fire({ title: '👨‍✈️ รายงาน พขร.', input: 'password', showCancelButton: true });
+      if (pass === '1234') { unlockedDriver = true; Swal.fire('สำเร็จ', 'ปลดล็อก', 'success'); } else return Swal.fire('ผิดพลาด', 'รหัสผิด!', 'error');
     }
     switchPage(pageId, tabElement);
   }
 
   async function callAPI(action, payload) {
-    Swal.fire({ title: 'กำลังประมวลผล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    Swal.fire({ title: 'รอสักครู่...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
       const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action, payload }) });
       const data = await res.json();
@@ -389,37 +372,23 @@
 
   document.getElementById('formRequest').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const st = new Date(document.getElementById('req_e').value);
-    const en = new Date(document.getElementById('req_f').value);
-    if (en - st < 1800000) return Swal.fire('เวลาไม่ถูกต้อง', 'ต้องมากกว่าอย่างน้อย 30 นาที', 'error');
-
-    const payload = {
-      requester: document.getElementById('req_c').value, group: document.getElementById('req_d').value,
-      start: document.getElementById('req_e').value, end: document.getElementById('req_f').value,
-      subject: document.getElementById('req_g').value, place: document.getElementById('req_h').value,
-      qty: document.getElementById('req_i').value, include: document.getElementById('req_j').value,
-      detail: document.getElementById('req_k').value, carType: document.getElementById('req_l').value
-    };
+    const st = new Date(document.getElementById('req_e').value); const en = new Date(document.getElementById('req_f').value);
+    if (en - st < 1800000) return Swal.fire('ข้อผิดพลาด', 'เวลาถึงต้องมากกว่าเวลาขอ อย่างน้อย 30 นาที', 'error');
+    const payload = { requester: $('#req_c').val(), group: $('#req_d').val(), start: $('#req_e').val(), end: $('#req_f').val(), subject: $('#req_g').val(), place: $('#req_h').val(), qty: $('#req_i').val(), include: $('#req_j').val(), detail: $('#req_k').val(), carType: $('#req_l').val() };
     const res = await callAPI('requestCar', payload);
-    Swal.fire('สำเร็จ', `สร้างคำขอสำเร็จ ID: ${res.data.id}`, 'success');
-    e.target.reset();
+    Swal.fire('สำเร็จ', `สร้างคำขอสำเร็จ ID: ${res.data.id}`, 'success'); e.target.reset();
   });
 
   async function loadData() {
-    const isRequestPage = document.getElementById('page-request').classList.contains('active');
-    if (!isRequestPage) Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    
+    if(document.getElementById('page-oil').classList.contains('active')) return;
+    Swal.fire({ title: 'กำลังโหลด...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-      const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
-      const json = await res.json();
-      globalData = json.data;
-      
-      renderTables();
-      if(document.getElementById('page-calendar').classList.contains('active')) renderCalendar();
-      if(document.getElementById('page-dashboard').classList.contains('active')) updateDashboard();
-      
-      if (!isRequestPage) Swal.close();
-    } catch (err) { if (!isRequestPage) Swal.fire('ข้อผิดพลาด', 'โหลดข้อมูลไม่สำเร็จ', 'error'); }
+      const res = await callAPI('getData');
+      globalData = res.data; renderTables();
+      if($('#page-calendar').hasClass('active')) renderCalendar();
+      if($('#page-dashboard').hasClass('active')) updateDashboard();
+      Swal.close();
+    } catch (err) { }
   }
 
   function formatDateUI(dStr) {
@@ -427,67 +396,38 @@
     return isNaN(d) ? dStr : d.toLocaleString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
   }
 
-  // 🟢 ปรับปรุงฟังก์ชัน renderTables
   function renderTables() {
     if ($.fn.DataTable.isDataTable('#tableAssign')) $('#tableAssign').DataTable().destroy();
     if ($.fn.DataTable.isDataTable('#tableDriver')) $('#tableDriver').DataTable().destroy();
     if ($.fn.DataTable.isDataTable('#tableReport')) $('#tableReport').DataTable().destroy();
-
-    const tbodyA = document.querySelector('#tableAssign tbody');
-    const tbodyD = document.querySelector('#tableDriver tbody');
-    const tbodyR = document.querySelector('#tableReport tbody');
+    const tbodyA = document.querySelector('#tableAssign tbody'); const tbodyD = document.querySelector('#tableDriver tbody'); const tbodyR = document.querySelector('#tableReport tbody');
     tbodyA.innerHTML = ''; tbodyD.innerHTML = ''; tbodyR.innerHTML = '';
 
     globalData.forEach((row) => {
       const id = row[0]; const start = formatDateUI(row[4]); const end = formatDateUI(row[5]);
       const req = row[2]; const subj = row[6]; const place = row[7]; const cType = row[11];
-      const driver = row[12]; const plate = row[13]; const diffKm = row[19];
-      const printCount = parseInt(row[23]) || 0; 
+      const driver = row[12]; const plate = row[13]; const diffKm = row[19]; const printCount = parseInt(row[23]) || 0; 
       
       let status = 'รอจัดรถ'; let badge = 'danger';
       if (driver) {
-        if (driver.includes('ยกเลิก')) { status = 'ยกเลิก (เสร็จสิ้น)'; badge = 'secondary'; }
+        if (driver.includes('ยกเลิก')) { status = 'ยกเลิก'; badge = 'secondary'; }
         else if (diffKm !== '') { status = 'เสร็จสิ้น'; badge = 'success'; }
         else { status = 'รอขับรถ'; badge = 'warning'; }
       }
 
-      // 🟢 1. หน้าจัดรถ - แสดงข้อมูลทั้งหมด (ที่ไม่ได้ถูกยกเลิก)
       if (id && (!driver || !driver.includes('ยกเลิก'))) {
-        let assignBtn = '';
-        if (!driver) {
-          assignBtn = `<button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button>`;
-        } else {
-          assignBtn = `<button class="btn btn-sm btn-success" onclick="openAssign('${id}')">จัดแล้ว (แก้ไข)</button>`;
-        }
-        tbodyA.innerHTML += `<tr>
-          <td>${assignBtn}</td>
-          <td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${subj}</td><td>${place}</td><td>${cType}</td>
-        </tr>`;
+        let assignBtn = !driver ? `<button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button>` : `<button class="btn btn-sm btn-success" onclick="openAssign('${id}')">แก้ไข</button>`;
+        tbodyA.innerHTML += `<tr><td>${assignBtn}</td><td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${subj}</td><td>${place}</td><td>${cType}</td></tr>`;
       }
 
-      // 🟢 2. หน้ารายงาน พขร. - แสดงข้อมูลที่จัดรถแล้วทั้งหมด
       if (driver && id && !driver.includes('ยกเลิก')) {
-        let driverBtn = '';
-        if (diffKm === '') {
-          driverBtn = `<button class="btn btn-sm btn-info text-white" onclick="openDriver('${id}')">บันทึกขับรถ</button>`;
-        } else {
-          driverBtn = `<button class="btn btn-sm btn-primary" onclick="openDriver('${id}')">แก้ไขรายงาน</button>`;
-        }
-        tbodyD.innerHTML += `<tr>
-          <td>${driverBtn}</td>
-          <td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver}</td><td>${plate}</td>
-        </tr>`;
+        let driverBtn = diffKm === '' ? `<button class="btn btn-sm btn-info text-white" onclick="openDriver('${id}')">บันทึกขับ</button>` : `<button class="btn btn-sm btn-primary" onclick="openDriver('${id}')">แก้ไข</button>`;
+        tbodyD.innerHTML += `<tr><td>${driverBtn}</td><td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver}</td><td>${plate}</td></tr>`;
       }
 
-      // ตารางรายงานทั้งหมด (ใช้ของเดิม)
       if (id) {
         let printBadge = printCount > 0 ? ` <span class="badge bg-info text-dark">พิมพ์ ${printCount}</span>` : '';
-        tbodyR.innerHTML += `<tr>
-          <td><button class="btn btn-sm btn-outline-primary" onclick="openView('${id}', false)">🔍 ข้อมูล</button></td>
-          <td>${id}</td><td><span class="badge bg-${badge}">${status}</span>${printBadge}</td><td>${start}</td><td class="text-danger">${end}</td>
-          <td>${req}</td><td>${place}</td><td>${driver || '-'}</td>
-          <td>${plate || '-'}</td><td>${diffKm !== '' ? diffKm + ' กม.' : '-'}</td>
-        </tr>`;
+        tbodyR.innerHTML += `<tr><td><button class="btn btn-sm btn-outline-primary" onclick="openView('${id}', false)">🔍 ข้อมูล</button></td><td>${id}</td><td><span class="badge bg-${badge}">${status}</span>${printBadge}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver || '-'}</td><td>${plate || '-'}</td><td>${diffKm !== '' ? diffKm + ' กม.' : '-'}</td></tr>`;
       }
     });
 
@@ -497,345 +437,229 @@
     $('#filterDriver').off('change').on('change', function() { tableDr.column(6).search(this.value).draw(); }); 
   }
 
-  // --- จัดรถ & พขร ---
-  
-  // 🟢 ฟังก์ชันช่วยเหลือเพื่อแปลงวันที่ให้แสดงใน input type="datetime-local" ได้
   function toDateTimeLocal(isoStr) {
-    if (!isoStr) return '';
-    const d = new Date(isoStr);
-    if (isNaN(d)) return '';
-    const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
+    if (!isoStr) return ''; const d = new Date(isoStr);
+    if (isNaN(d)) return ''; const tzoffset = (new Date()).getTimezoneOffset() * 60000; 
     return (new Date(d - tzoffset)).toISOString().slice(0, 16);
   }
 
   const modalAssign = new bootstrap.Modal(document.getElementById('modalAssign'));
-  
   function openAssign(id) {
-    document.getElementById('assign_id').value = id; 
-    document.getElementById('assign_id_lbl').innerText = id;
-    document.getElementById('formAssign').reset(); 
-    
-    // 🟢 ดึงข้อมูลเดิมมาแสดงเพื่อแก้ไข
+    $('#assign_id').val(id); $('#assign_id_lbl').text(id); $('#formAssign')[0].reset();
     const row = globalData.find(r => r[0] == id);
-    if (row) {
-      if (row[12]) document.getElementById('assign_m').value = row[12];
-      if (row[13]) {
-        document.getElementById('assign_n').value = row[13];
-        document.getElementById('assign_o').value = row[14];
-      }
-    }
-    
+    if (row) { if(row[12]) $('#assign_m').val(row[12]); if(row[13]){ $('#assign_n').val(row[13]); $('#assign_o').val(row[14]); } }
     modalAssign.show();
   }
-  
   document.getElementById('formAssign').addEventListener('submit', async (e) => {
     e.preventDefault();
-    await callAPI('assignCar', { 
-      id: document.getElementById('assign_id').value, 
-      driver: document.getElementById('assign_m').value, 
-      plate: document.getElementById('assign_n').value, 
-      model: document.getElementById('assign_o').value 
-    });
-    Swal.fire('สำเร็จ', 'บันทึกการจัดรถเรียบร้อย', 'success'); 
-    modalAssign.hide(); 
-    loadData(); 
+    await callAPI('assignCar', { id: $('#assign_id').val(), driver: $('#assign_m').val(), plate: $('#assign_n').val(), model: $('#assign_o').val() });
+    Swal.fire('สำเร็จ', 'บันทึกเรียบร้อย', 'success'); modalAssign.hide(); loadData(); 
   });
 
   const modalDriver = new bootstrap.Modal(document.getElementById('modalDriver'));
-  
   function openDriver(id) {
-    document.getElementById('driver_id').value = id; 
-    document.getElementById('driver_id_lbl').innerText = id;
-    document.getElementById('formDriver').reset(); 
-    
-    // 🟢 ดึงข้อมูลเดิมมาแสดงเพื่อแก้ไข
+    $('#driver_id').val(id); $('#driver_id_lbl').text(id); $('#formDriver')[0].reset(); 
     const row = globalData.find(r => r[0] == id);
     if (row) {
-      if (row[15]) document.getElementById('driver_p').value = toDateTimeLocal(row[15]);
-      if (row[16]) document.getElementById('driver_q').value = toDateTimeLocal(row[16]);
-      if (row[17] !== '') document.getElementById('driver_r').value = row[17];
-      if (row[18] !== '') document.getElementById('driver_s').value = row[18];
-      if (row[19] !== '') document.getElementById('driver_t').value = row[19];
-      if (row[20] !== '') document.getElementById('driver_u').value = row[20];
-      if (row[21] !== '') document.getElementById('driver_v').value = row[21];
+      if(row[15]) $('#driver_p').val(toDateTimeLocal(row[15])); if(row[16]) $('#driver_q').val(toDateTimeLocal(row[16]));
+      if(row[17] !== '') $('#driver_r').val(row[17]); if(row[18] !== '') $('#driver_s').val(row[18]);
+      if(row[19] !== '') $('#driver_t').val(row[19]); if(row[20] !== '') $('#driver_u').val(row[20]);
+      if(row[21] !== '') $('#driver_v').val(row[21]);
     }
-    
     modalDriver.show();
   }
-  
   function calcKM() {
-    const start = parseFloat(document.getElementById('driver_r').value) || 0;
-    const end = parseFloat(document.getElementById('driver_s').value) || 0;
-    const diff = end - start;
-    document.getElementById('driver_t').value = diff;
-    
-    // 🟢 ตรวจสอบว่า กม.ถึง ต้องมากกว่า กม.เริ่ม
-    if (diff <= 0 && document.getElementById('driver_s').value !== '') {
-        document.getElementById('driver_t').classList.add('is-invalid'); 
-    } else {
-        document.getElementById('driver_t').classList.remove('is-invalid');
-    }
+    const start = parseFloat($('#driver_r').val()) || 0; const end = parseFloat($('#driver_s').val()) || 0; const diff = end - start;
+    $('#driver_t').val(diff);
+    if (diff <= 0 && $('#driver_s').val() !== '') $('#driver_t').addClass('is-invalid'); else $('#driver_t').removeClass('is-invalid');
   }
-  
-  document.getElementById('driver_r').addEventListener('input', calcKM); 
-  document.getElementById('driver_s').addEventListener('input', calcKM);
-  
+  $('#driver_r, #driver_s').on('input', calcKM);
   document.getElementById('formDriver').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const actSt = new Date(document.getElementById('driver_p').value); 
-    const actEn = new Date(document.getElementById('driver_q').value);
-    const diffKm = parseFloat(document.getElementById('driver_t').value);
-    
-    if (actEn - actSt < 1800000) return Swal.fire('เวลาไม่ถูกต้อง', '"ขับถึงจริง" ต้องมากกว่า "ขับจริง" อย่างน้อย 30 นาที', 'error');
-    
-    // 🟢 ตรวจสอบก่อนส่งข้อมูล กม.ถึง ต้องมากกว่า กม.เริ่ม
-    if (diffKm <= 0) return Swal.fire('ระยะทางผิดพลาด', 'เลขกิโลเมตรถึง ต้องมากกว่ากิโลเมตรเริ่ม', 'error');
-
-    await callAPI('driverReport', {
-      id: document.getElementById('driver_id').value, actStart: document.getElementById('driver_p').value,
-      actEnd: document.getElementById('driver_q').value, startKm: document.getElementById('driver_r').value,
-      endKm: document.getElementById('driver_s').value, diffKm: diffKm, fuel: document.getElementById('driver_u').value, cost: document.getElementById('driver_v').value
-    });
-    Swal.fire('สำเร็จ', 'บันทึกรายงานการขับรถเรียบร้อย', 'success'); 
-    modalDriver.hide(); 
-    loadData(); 
+    const actSt = new Date($('#driver_p').val()); const actEn = new Date($('#driver_q').val()); const diffKm = parseFloat($('#driver_t').val());
+    if (actEn - actSt < 1800000) return Swal.fire('ผิดพลาด', '"ขับถึงจริง" ต้องมากกว่า "ขับจริง" > 30 นาที', 'error');
+    if (diffKm <= 0) return Swal.fire('ผิดพลาด', 'เลขกิโลเมตรถึง ต้องมากกว่ากิโลเมตรเริ่ม', 'error');
+    await callAPI('driverReport', { id: $('#driver_id').val(), actStart: $('#driver_p').val(), actEnd: $('#driver_q').val(), startKm: $('#driver_r').val(), endKm: $('#driver_s').val(), diffKm: diffKm, fuel: $('#driver_u').val(), cost: $('#driver_v').val() });
+    Swal.fire('สำเร็จ', 'บันทึกเรียบร้อย', 'success'); modalDriver.hide(); loadData(); 
   });
 
-  // --- ดูข้อมูล ---
   const modalView = new bootstrap.Modal(document.getElementById('modalView'));
   function openView(id, fromCalendar = false) {
-    document.getElementById('view_id_lbl').innerText = id;
-    const row = globalData.find(r => r[0] == id);
-    if(!row) return;
-
-    document.getElementById('viewBody').innerHTML = `
-      <div class="col-md-6 mb-2"><b>ผู้ขอ:</b> ${row[2] || '-'} (${row[3] || '-'})</div>
-      <div class="col-md-6 mb-2"><b>ประเภทรถ:</b> ${row[11] || '-'}</div>
-      <div class="col-md-6 mb-2"><b>ขอวันที่:</b> ${formatDateUI(row[4])}</div>
-      <div class="col-md-6 mb-2"><b>ถึงวันที่:</b> <span class="text-danger">${formatDateUI(row[5])}</span></div>
-      <div class="col-md-12 mb-2"><b>เรื่อง:</b> ${row[6] || '-'}</div>
-      <div class="col-md-12 mb-2"><b>สถานที่:</b> ${row[7] || '-'}</div>
-      <div class="col-md-12 mb-2"><b>ผู้เดินทาง:</b> ${row[8]} คน (ได้แก่: ${row[9] || '-'})</div>
-      <hr>
-      <div class="col-md-6 mb-2"><b>พนักงานขับรถ:</b> ${row[12] || '-'}</div>
-      <div class="col-md-6 mb-2"><b>ทะเบียนรถ:</b> ${row[13] || '-'} (${row[14] || '-'})</div>
-      <div class="col-md-6 mb-2"><b>เลขไมล์ไป-กลับ:</b> ${row[17] || '-'} ถึง ${row[18] || '-'} (ระยะ: ${row[19] || '-'})</div>
+    $('#view_id_lbl').text(id); const row = globalData.find(r => r[0] == id); if(!row) return;
+    $('#viewBody').html(`
+      <div class="col-md-6 mb-2"><b>ผู้ขอ:</b> ${row[2] || '-'} (${row[3] || '-'})</div><div class="col-md-6 mb-2"><b>ประเภทรถ:</b> ${row[11] || '-'}</div>
+      <div class="col-md-6 mb-2"><b>ขอวันที่:</b> ${formatDateUI(row[4])}</div><div class="col-md-6 mb-2"><b>ถึงวันที่:</b> <span class="text-danger">${formatDateUI(row[5])}</span></div>
+      <div class="col-md-12 mb-2"><b>เรื่อง:</b> ${row[6] || '-'}</div><div class="col-md-12 mb-2"><b>สถานที่:</b> ${row[7] || '-'}</div>
+      <div class="col-md-12 mb-2"><b>ผู้เดินทาง:</b> ${row[8]} คน (ได้แก่: ${row[9] || '-'})</div><hr>
+      <div class="col-md-6 mb-2"><b>พนักงานขับรถ:</b> ${row[12] || '-'}</div><div class="col-md-6 mb-2"><b>ทะเบียนรถ:</b> ${row[13] || '-'} (${row[14] || '-'})</div>
+      <div class="col-md-6 mb-2"><b>เลขไมล์:</b> ${row[17] || '-'} ถึง ${row[18] || '-'} (ระยะ: ${row[19] || '-'})</div>
       <div class="col-md-6 mb-2"><b>เติมน้ำมัน:</b> ${row[20] || '-'} ลิตร (${row[21] || '-'} บาท)</div>
-    `;
-
-    document.getElementById('btnPrintDoc').style.display = fromCalendar ? 'none' : 'block';
-    modalView.show();
+    `);
+    $('#btnPrintDoc').toggle(!fromCalendar); modalView.show();
   }
-
   async function printDoc() {
-    const id = document.getElementById('view_id_lbl').innerText;
     Swal.fire({ title: 'กำลังดึงข้อมูลลงเอกสาร...', text: 'รอประมาณ 5-10 วินาทีครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-      const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'printDoc', payload: { id: id } }) });
+      const res = await callAPI('printDoc', { id: $('#view_id_lbl').text() });
+      Swal.fire('สำเร็จ!', 'สร้างเอกสาร Google Doc เรียบร้อย', 'success'); window.open(res.data.url, '_blank'); loadData(); 
+    } catch (err) { }
+  }
+
+
+  // ================= 🟢 ฟังก์ชันระบบน้ำมัน 🟢 =================
+  const modalOilReq = new bootstrap.Modal(document.getElementById('modalOilRequest'));
+  const modalOilPen = new bootstrap.Modal(document.getElementById('modalOilPending'));
+  const modalOilApp = new bootstrap.Modal(document.getElementById('modalOilApprove'));
+  const modalOilRep = new bootstrap.Modal(document.getElementById('modalOilReport'));
+
+  async function loadOilData() {
+    Swal.fire({ title: 'โหลดข้อมูลน้ำมัน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    try {
+      const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getOilData' }) });
       const data = await res.json();
-      if (data.status === 'success') {
-        Swal.fire('สำเร็จ!', 'สร้างเอกสาร Google Doc เรียบร้อย', 'success');
-        window.open(data.data.url, '_blank'); 
-        loadData(); 
-      } else throw new Error(data.message);
-    } catch (err) { Swal.fire('ข้อผิดพลาด', err.message, 'error'); }
-  }
-
-  function renderCalendar() {
-    const calendarEl = document.getElementById('calendar');
-    if (calendar) calendar.destroy();
-
-    const events = globalData.map(row => {
-      const id = row[0]; const start = row[4]; const end = row[5];
-      const place = row[7] || 'ไม่ระบุสถานที่'; const driver = row[12];
-      const plate = row[13] ? `(${row[13]})` : '(ยังไม่จัดรถ)';
-      const diffKm = row[19];
-
-      let color = '#dc3545'; 
-      if (driver) {
-        if (driver.includes('ยกเลิก')) color = '#6c757d'; 
-        else if (diffKm !== '') color = '#198754'; 
-        else color = '#ffc107'; 
-      }
-
-      return {
-        id: id, title: `${place} ${plate}`, start: start, end: end,
-        backgroundColor: color, borderColor: color, textColor: color === '#ffc107' ? '#000' : '#fff' 
-      };
-    }).filter(event => event.id);
-
-    calendar = new FullCalendar.Calendar(calendarEl, {
-      initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth', 
-      headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
-      locale: 'th', 
-      events: events,
-      eventClick: function(info) {
-        openView(info.event.id, true); 
-      }
-    });
-    calendar.render();
-  }
-
-  // ================= 🟢 ส่วนการทำงานของ Dashboard =================
-  function toggleDashFilters() {
-    const type = document.getElementById('dashFilterType').value;
-    document.getElementById('f-date').style.display = type === 'date' ? 'flex' : 'none';
-    document.getElementById('f-month').style.display = type === 'month' ? 'block' : 'none';
-    document.getElementById('f-fy').style.display = type === 'fy' ? 'block' : 'none';
-  }
-
-  function initDashFY() {
-    const fys = new Set();
-    globalData.forEach(r => {
-      let dVal = r[15] || r[4]; 
-      if(dVal) {
-        const d = new Date(dVal);
-        if(!isNaN(d)) {
-           let m = d.getMonth() + 1;
-           let y = d.getFullYear() + 543;
-           fys.add(m >= 10 ? y + 1 : y); 
-        }
-      }
-    });
-    const sel = document.getElementById('dashFY');
-    sel.innerHTML = '';
-    Array.from(fys).sort().reverse().forEach(fy => {
-       sel.innerHTML += `<option value="${fy}">${fy}</option>`;
-    });
-  }
-
-  function updateDashboard() {
-    if(Object.keys(charts).length === 0) initDashFY(); 
-
-    const type = document.getElementById('dashFilterType').value;
-    
-    let filteredData = globalData.filter(r => r[0] && !(r[12] && String(r[12]).includes('ยกเลิก')));
-
-    if (type === 'date') {
-      const sd = new Date(document.getElementById('dashStartDate').value);
-      const ed = new Date(document.getElementById('dashEndDate').value);
-      ed.setHours(23,59,59,999);
-      if(!isNaN(sd) && !isNaN(ed)) {
-        filteredData = filteredData.filter(r => {
-          const d = new Date(r[15] || r[4]); return d >= sd && d <= ed;
-        });
-      }
-    } else if (type === 'month') {
-      const val = document.getElementById('dashMonth').value; 
-      if(val) {
-        const [yy, mm] = val.split('-');
-        filteredData = filteredData.filter(r => {
-          const d = new Date(r[15] || r[4]);
-          return d.getFullYear() == yy && (d.getMonth() + 1) == mm;
-        });
-      }
-    } else if (type === 'fy') {
-      const targetFy = parseInt(document.getElementById('dashFY').value);
-      if(targetFy) {
-         filteredData = filteredData.filter(r => {
-           const d = new Date(r[15] || r[4]);
-           if(isNaN(d)) return false;
-           let m = d.getMonth() + 1; let y = d.getFullYear() + 543;
-           return (m >= 10 ? y + 1 : y) === targetFy;
-         });
-      }
-    }
-
-    const dailyCounts = {};
-    const carCounts = {};
-    const driverCounts = {};
-    const carKMs = {}; 
-
-    filteredData.forEach(r => {
-      if (!r[15]) return; 
-
-      let st = new Date(r[15]);
-      if (isNaN(st)) return;
-      let en = new Date(r[16]);
-      if (isNaN(en)) en = st; 
-
-      let current = new Date(st);
-      current.setHours(0,0,0,0);
-      let endDay = new Date(en);
-      endDay.setHours(0,0,0,0);
+      if(data.status !== 'success') throw new Error(data.message);
       
-      let daysCount = 0;
-      while(current <= endDay) {
-          const dateStr = `${('0'+current.getDate()).slice(-2)}/${('0'+(current.getMonth()+1)).slice(-2)}/${current.getFullYear()+543}`;
-          dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
-          current.setDate(current.getDate() + 1);
-          daysCount++;
-      }
-      if(daysCount === 0) daysCount = 1;
-
-      const plate = r[13];
-      if(plate) {
-         carCounts[plate] = (carCounts[plate] || 0) + daysCount; 
-         
-         const kmSt = parseFloat(r[17]);
-         const kmEn = parseFloat(r[18]);
-         if(!carKMs[plate]) carKMs[plate] = { min: Infinity, max: -Infinity };
-         if(!isNaN(kmSt) && kmSt < carKMs[plate].min) carKMs[plate].min = kmSt;
-         if(!isNaN(kmEn) && kmEn > carKMs[plate].max) carKMs[plate].max = kmEn;
-      }
-
-      const driver = r[12];
-      if(driver) {
-         driverCounts[driver] = (driverCounts[driver] || 0) + daysCount; 
-      }
-    });
-
-    const carKmLabels = []; const carKmData = [];
-    for(let plate in carKMs) {
-      if(carKMs[plate].min !== Infinity && carKMs[plate].max !== -Infinity) {
-        let diff = carKMs[plate].max - carKMs[plate].min;
-        if(diff > 0) { carKmLabels.push(plate); carKmData.push(diff); }
-      }
-    }
-
-    renderChart('chartDaily', 'line', 'จำนวนการใช้รถ (ครั้ง/วัน)', Object.keys(dailyCounts), Object.values(dailyCounts), '#0d6efd');
-    renderChart('chartCarCount', 'horizontalBar', 'จำนวนครั้งที่ใช้รถแต่ละคัน (นับตามวัน)', Object.keys(carCounts), Object.values(carCounts), '#198754');
-    renderChart('chartDriverCount', 'horizontalBar', 'จำนวนครั้งของ พขร. (นับตามวัน)', Object.keys(driverCounts), Object.values(driverCounts), '#ffc107');
-    renderChart('chartCarKm', 'horizontalBar', 'ระยะทางที่ขับรวม (กม.)', carKmLabels, carKmData, '#dc3545');
+      const d = data.data;
+      $('#oilBalanceDisplay').text(parseFloat(d.balance).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+      oilPendingList = d.pending;
+      oilHistoryList = d.history;
+      Swal.close();
+    } catch(err) { Swal.fire('ผิดพลาด', err.message, 'error'); }
   }
 
-  function renderChart(canvasId, type, label, labels, data, color) {
-    if(charts[canvasId]) charts[canvasId].destroy();
-    const ctx = document.getElementById(canvasId).getContext('2d');
-    
-    let options = { responsive: true, maintainAspectRatio: false };
-    
-    if(type === 'horizontalBar') {
-       type = 'bar';
-       options.indexAxis = 'y'; 
-       options.scales = { x: { beginAtZero: true } };
+  function toggleOilType() {
+    const type = $('#oilType').val();
+    if(type === 'out') {
+      $('#oilCarDiv').show(); $('#oilCar').prop('required', true);
     } else {
-       options.scales = { y: { beginAtZero: true } };
+      $('#oilCarDiv').hide(); $('#oilCar').prop('required', false).val('');
     }
-    
-    charts[canvasId] = new Chart(ctx, {
-      type: type,
-      data: {
-        labels: labels,
-        datasets: [{ label: label, data: data, backgroundColor: color, borderColor: color, borderWidth: 1 }]
-      },
-      options: options
-    });
   }
-  
-  // ================= 🟢 ระบบป้องกันการคัดลอก (Anti-Copy) =================
-  document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
-  document.addEventListener('copy', function(e) {
+
+  function openOilRequest() {
+    $('#formOilRequest')[0].reset(); toggleOilType(); clearCanvas(sigPad1); modalOilReq.show();
+  }
+
+  document.getElementById('formOilRequest').addEventListener('submit', async (e) => {
     e.preventDefault();
-    Swal.fire({ icon: 'warning', title: 'สงวนลิขสิทธิ์', text: 'ไม่อนุญาตให้คัดลอกข้อมูล @narongkanchanpibul2026', timer: 1500, showConfirmButton: false });
+    if(isCanvasBlank(document.getElementById('sigCanvas1'))) return Swal.fire('คำเตือน', 'กรุณาเซ็นชื่อก่อนบันทึก', 'warning');
+    const type = $('#oilType').val(); const qty = parseFloat($('#oilQty').val());
+    const payload = {
+       inQty: type === 'in' ? qty : '', outQty: type === 'out' ? qty : '',
+       car: $('#oilCar').val() || '', detail: $('#oilDetail').val(),
+       sig1: document.getElementById('sigCanvas1').toDataURL()
+    };
+    await callAPI('requestOil', payload);
+    Swal.fire('สำเร็จ', 'ส่งรายการรออนุมัติแล้ว', 'success'); modalOilReq.hide(); loadOilData();
   });
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'F12') { e.preventDefault(); }
-    if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) { e.preventDefault(); }
-    if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); }
-    if (e.ctrlKey && (e.key === 'c' || e.key === 'C')) {
-      e.preventDefault();
-      Swal.fire({ icon: 'warning', title: 'สงวนลิขสิทธิ์', text: 'ไม่อนุญาตให้คัดลอกข้อมูล @narongkanchanpibul2026', timer: 1500, showConfirmButton: false });
+
+  async function checkLoginOilApprove() {
+    if(!unlockedOil) {
+      const { value: pass } = await Swal.fire({ title: '🔐 ปลดล็อกสำหรับผู้อนุมัติ', input: 'password', showCancelButton: true });
+      if (pass === '5678') { unlockedOil = true; Swal.fire('สำเร็จ', 'เข้าสู่ระบบอนุมัติ', 'success'); } 
+      else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผิด!', 'error'); return; }
+    }
+    openOilPending();
+  }
+
+  function openOilPending() {
+    if ($.fn.DataTable.isDataTable('#tableOilPending')) $('#tableOilPending').DataTable().destroy();
+    const tbody = document.querySelector('#tableOilPending tbody'); tbody.innerHTML = '';
+    
+    oilPendingList.forEach(item => {
+      const r = item.data;
+      const typeStr = r[1] ? '<span class="badge bg-success">นำเข้า</span>' : '<span class="badge bg-danger">เบิกออก</span>';
+      const qty = r[1] ? r[1] : r[2];
+      const img = r[6] ? `<img src="${r[6]}" style="height:30px; border:1px solid #ccc;">` : '';
+      tbody.innerHTML += `<tr>
+        <td><button class="btn btn-sm btn-primary" onclick="openOilApprove(${item.row})">✍️ พิจารณา</button></td>
+        <td>${formatDateUI(r[0])}</td><td>${typeStr}</td><td class="fw-bold">${qty}</td>
+        <td>${r[4]||'-'}</td><td>${r[5]}</td><td>${img}</td>
+      </tr>`;
+    });
+    $('#tableOilPending').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }});
+    modalOilPen.show();
+  }
+
+  function openOilApprove(rowNum) {
+    const item = oilPendingList.find(x => x.row === rowNum);
+    if(!item) return;
+    const r = item.data;
+    const typeTxt = r[1] ? `นำเข้า ${r[1]} ลิตร` : `เบิกออก ${r[2]} ลิตร`;
+    $('#oilApproveSummary').html(`กำลังอนุมัติรายการ: <b>${typeTxt}</b><br>รายละเอียด: ${r[5]}<br>ป้ายทะเบียน: ${r[4]||'-'}`);
+    $('#oilApproveRow').val(rowNum);
+    $('#oilNote').val(''); clearCanvas(sigPad2);
+    modalOilPen.hide(); modalOilApp.show();
+  }
+
+  document.getElementById('formOilApprove').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if(isCanvasBlank(document.getElementById('sigCanvas2'))) return Swal.fire('คำเตือน', 'กรุณาเซ็นชื่ออนุมัติ', 'warning');
+    const payload = {
+      row: $('#oilApproveRow').val(), note: $('#oilNote').val(), sig2: document.getElementById('sigCanvas2').toDataURL()
+    };
+    await callAPI('approveOil', payload);
+    Swal.fire('สำเร็จ', 'อนุมัติเรียบร้อย ยอดคงเหลือถูกอัปเดตแล้ว', 'success'); modalOilApp.hide(); loadOilData();
+  });
+
+  function openOilReport() {
+    if ($.fn.DataTable.isDataTable('#tableOilReport')) $('#tableOilReport').DataTable().destroy();
+    const tbody = document.querySelector('#tableOilReport tbody'); tbody.innerHTML = '';
+    oilHistoryList.forEach(item => {
+      const r = item.data;
+      const status = item.approved ? '<span class="badge bg-success">อนุมัติแล้ว</span>' : '<span class="badge bg-warning text-dark">รออนุมัติ</span>';
+      const sig1 = r[6] ? `<img src="${r[6]}" height="25">` : '';
+      const sig2 = r[7] ? `<img src="${r[7]}" height="25">` : '-';
+      tbody.innerHTML += `<tr>
+        <td>${status}</td><td>${formatDateUI(r[0])}</td>
+        <td class="text-success">${r[1]||'-'}</td><td class="text-danger">${r[2]||'-'}</td>
+        <td class="fw-bold text-primary">${r[3]||'-'}</td>
+        <td>${r[4]||'-'}</td><td>${r[5]}<br><small class="text-muted">${r[8]||''}</small></td>
+        <td>${sig1}</td><td>${sig2}</td>
+      </tr>`;
+    });
+    $('#tableOilReport').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']] });
+    modalOilRep.show();
+  }
+
+  // --- HTML5 Canvas Signature ---
+  function initCanvas(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    // Fix Blur issue for high DPI
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width || 300; canvas.height = rect.height || 150;
+    
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return { x: clientX - r.left, y: clientY - r.top };
+    };
+
+    const start = (e) => { e.preventDefault(); drawing = true; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); };
+    const draw = (e) => { e.preventDefault(); if (!drawing) return; const pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); };
+    const stop = (e) => { e.preventDefault(); drawing = false; };
+
+    canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stop); canvas.addEventListener('mouseout', stop);
+    canvas.addEventListener('touchstart', start); canvas.addEventListener('touchmove', draw); canvas.addEventListener('touchend', stop);
+    return { canvas, ctx };
+  }
+  function clearCanvas(pad) { pad.ctx.clearRect(0, 0, pad.canvas.width, pad.canvas.height); }
+  function isCanvasBlank(canvas) {
+    const blank = document.createElement('canvas'); blank.width = canvas.width; blank.height = canvas.height;
+    return canvas.toDataURL() === blank.toDataURL();
+  }
+
+  // ================= ป้องกันคัดลอก =================
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && ['I','J','C'].includes(e.key)) || (e.ctrlKey && ['u','U','c','C'].includes(e.key))) {
+      e.preventDefault(); Swal.fire({ icon: 'warning', title: 'สงวนลิขสิทธิ์', text: 'ไม่อนุญาตให้คัดลอกข้อมูล', timer: 1500, showConfirmButton: false });
     }
   });
 </script>
