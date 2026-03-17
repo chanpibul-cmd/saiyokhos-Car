@@ -274,6 +274,10 @@
   let unlockedAssign = false; let unlockedDriver = false; let unlockedOil = false;
   let calendar; let charts = {}; 
 
+  // 🟢 เพิ่ม 2 บรรทัดนี้เพื่อป้องกันการโหลดซ้อน
+  let isFetchingData = false; 
+  let isFetchingOil = false;
+
   // ข้อมูลน้ำมัน
   let oilPendingList = []; let oilHistoryList = [];
 
@@ -339,22 +343,20 @@ function switchPage(pageId, tabElement) {
       }
     }
     
-    // 🟢 จัดการการโหลดข้อมูลตามหน้า
+    // วาดกราฟ/ปฏิทินทันที (ถ้ามีข้อมูลแล้ว)
+    if (pageId === 'page-calendar' && globalData.length > 0) {
+      if (!calendar) renderCalendar(); else setTimeout(() => calendar.render(), 50);
+    } else if (pageId === 'page-dashboard' && globalData.length > 0) {
+      updateDashboard();
+    }
+
+    // จัดการการโหลดข้อมูลเบื้องหลัง
     if (pageId === 'page-oil') {
-      if (oilHistoryList.length === 0) loadOilData(false); // โชว์ Loading ถ้ายังไม่มีข้อมูล
-      else loadOilData(true); // มีแล้วให้อัปเดตเงียบๆ เบื้องหลัง
+      if (oilHistoryList.length === 0) loadOilData(false); 
+      else loadOilData(true); 
     } else if (pageId !== 'page-request') {
-      if (globalData.length === 0) {
-        loadData(false); // โชว์ Loading เฉพาะกรณีที่ข้อมูลยังโหลดไม่เสร็จแล้วรีบกดเปลี่ยนหน้า
-      } else {
-        // 🟢 มีข้อมูลแล้ว สั่งวาดปฏิทิน/กราฟทันที ไม่ต้องรอ
-        if (pageId === 'page-calendar') {
-          if (!calendar) renderCalendar(); else setTimeout(() => calendar.render(), 100);
-        }
-        if (pageId === 'page-dashboard') updateDashboard();
-        
-        loadData(true); // โหลดเช็คข้อมูลใหม่เบื้องหลัง เผื่อมีใครคีย์ข้อมูลเข้ามา
-      }
+      if (globalData.length === 0) loadData(false); 
+      else loadData(true); 
     }
   }
 
@@ -391,25 +393,35 @@ function switchPage(pageId, tabElement) {
 
 // 🟢 เพิ่มพารามิเตอร์ silent เพื่อบอกว่าต้องโชว์หน้าต่างโหลดไหม (ค่าเริ่มต้นคือ โหลดเงียบๆ)
 async function loadData(silent = true) {
+    if (isFetchingData) return; // ถ้ากำลังโหลดอยู่ ให้ข้ามไปเลย (ป้องกันค้าง)
+    isFetchingData = true; // ล็อกการโหลด
+    
     if (!silent) Swal.fire({ title: 'กำลังดึงข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     
     try {
       const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
       const json = await res.json();
       
-      // เช็คว่า Apps Script ส่ง status success กลับมาไหม
       if (json.status !== 'success') throw new Error(json.message);
       
-      globalData = json.data || []; // ป้องกันค่าเป็น undefined
+      globalData = json.data || []; 
       renderTables();
       
-      if (document.getElementById('page-calendar').classList.contains('active')) renderCalendar();
-      if (document.getElementById('page-dashboard').classList.contains('active')) updateDashboard();
+      // วาดกราฟและปฏิทินเฉพาะตอนที่ผู้ใช้อยู่หน้านั้นจริงๆ
+      if (document.getElementById('page-calendar').classList.contains('active')) {
+        if (!calendar) renderCalendar(); else calendar.render();
+      }
+      if (document.getElementById('page-dashboard').classList.contains('active')) {
+        updateDashboard();
+      }
       
-      if (!silent) Swal.close();
     } catch (err) { 
       console.error("Load Data Error:", err);
       if (!silent) Swal.fire('ข้อผิดพลาด', 'โหลดข้อมูลไม่สำเร็จ: ' + err.message, 'error'); 
+    } finally {
+      // โหลดเสร็จแล้ว ปลดล็อก
+      isFetchingData = false;
+      if (!silent) Swal.close();
     }
   }
 
@@ -713,6 +725,9 @@ async function loadData(silent = true) {
   const modalOilRep = new bootstrap.Modal(document.getElementById('modalOilReport'));
 
 async function loadOilData(silent = true) {
+    if (isFetchingOil) return; // ถ้ากำลังโหลดอยู่ ให้ข้าม
+    isFetchingOil = true; // ล็อก
+    
     if (!silent) Swal.fire({ title: 'โหลดข้อมูลน้ำมัน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     
     try {
@@ -726,10 +741,13 @@ async function loadOilData(silent = true) {
       oilPendingList = d.pending || [];
       oilHistoryList = d.history || [];
       
-      if (!silent) Swal.close();
     } catch(err) { 
       console.error("Load Oil Data Error:", err);
       if (!silent) Swal.fire('ผิดพลาดระบบน้ำมัน', err.message, 'error'); 
+    } finally {
+      // โหลดเสร็จแล้ว ปลดล็อก
+      isFetchingOil = false;
+      if (!silent) Swal.close();
     }
   }
   function toggleOilType() {
