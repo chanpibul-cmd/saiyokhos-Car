@@ -526,7 +526,185 @@ async function loadData(silent = true) {
       Swal.fire('สำเร็จ!', 'สร้างเอกสาร Google Doc เรียบร้อย', 'success'); window.open(res.data.url, '_blank'); loadData(); 
     } catch (err) { }
   }
+// ================= 🟢 ฟังก์ชันปฏิทิน 🟢 =================
+  function renderCalendar() {
+    const calendarEl = document.getElementById('calendar');
+    if (calendar) calendar.destroy();
 
+    const events = globalData.map(row => {
+      const id = row[0]; const start = row[4]; const end = row[5];
+      const place = row[7] || 'ไม่ระบุสถานที่'; const driver = row[12];
+      const plate = row[13] ? `(${row[13]})` : '(ยังไม่จัดรถ)';
+      const diffKm = row[19];
+
+      let color = '#dc3545'; 
+      if (driver) {
+        if (driver.includes('ยกเลิก')) color = '#6c757d'; 
+        else if (diffKm !== '') color = '#198754'; 
+        else color = '#ffc107'; 
+      }
+
+      return {
+        id: id, title: `${place} ${plate}`, start: start, end: end,
+        backgroundColor: color, borderColor: color, textColor: color === '#ffc107' ? '#000' : '#fff' 
+      };
+    }).filter(event => event.id);
+
+    calendar = new FullCalendar.Calendar(calendarEl, {
+      initialView: window.innerWidth < 768 ? 'listWeek' : 'dayGridMonth', 
+      headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
+      locale: 'th', 
+      events: events,
+      eventClick: function(info) {
+        openView(info.event.id, true); 
+      }
+    });
+    calendar.render();
+  }
+
+  // ================= 🟢 ฟังก์ชันแดชบอร์ด 🟢 =================
+  function toggleDashFilters() {
+    const type = document.getElementById('dashFilterType').value;
+    document.getElementById('f-date').style.display = type === 'date' ? 'flex' : 'none';
+    document.getElementById('f-month').style.display = type === 'month' ? 'block' : 'none';
+    document.getElementById('f-fy').style.display = type === 'fy' ? 'block' : 'none';
+  }
+
+  function initDashFY() {
+    const fys = new Set();
+    globalData.forEach(r => {
+      let dVal = r[15] || r[4]; 
+      if(dVal) {
+        const d = new Date(dVal);
+        if(!isNaN(d)) {
+           let m = d.getMonth() + 1;
+           let y = d.getFullYear() + 543;
+           fys.add(m >= 10 ? y + 1 : y); 
+        }
+      }
+    });
+    const sel = document.getElementById('dashFY');
+    sel.innerHTML = '';
+    Array.from(fys).sort().reverse().forEach(fy => {
+       sel.innerHTML += `<option value="${fy}">${fy}</option>`;
+    });
+  }
+
+  function updateDashboard() {
+    if(Object.keys(charts).length === 0) initDashFY(); 
+
+    const type = document.getElementById('dashFilterType').value;
+    let filteredData = globalData.filter(r => r[0] && !(r[12] && String(r[12]).includes('ยกเลิก')));
+
+    if (type === 'date') {
+      const sd = new Date(document.getElementById('dashStartDate').value);
+      const ed = new Date(document.getElementById('dashEndDate').value);
+      ed.setHours(23,59,59,999);
+      if(!isNaN(sd) && !isNaN(ed)) {
+        filteredData = filteredData.filter(r => {
+          const d = new Date(r[15] || r[4]); return d >= sd && d <= ed;
+        });
+      }
+    } else if (type === 'month') {
+      const val = document.getElementById('dashMonth').value; 
+      if(val) {
+        const [yy, mm] = val.split('-');
+        filteredData = filteredData.filter(r => {
+          const d = new Date(r[15] || r[4]);
+          return d.getFullYear() == yy && (d.getMonth() + 1) == mm;
+        });
+      }
+    } else if (type === 'fy') {
+      const targetFy = parseInt(document.getElementById('dashFY').value);
+      if(targetFy) {
+         filteredData = filteredData.filter(r => {
+           const d = new Date(r[15] || r[4]);
+           if(isNaN(d)) return false;
+           let m = d.getMonth() + 1; let y = d.getFullYear() + 543;
+           return (m >= 10 ? y + 1 : y) === targetFy;
+         });
+      }
+    }
+
+    const dailyCounts = {};
+    const carCounts = {};
+    const driverCounts = {};
+    const carKMs = {}; 
+
+    filteredData.forEach(r => {
+      if (!r[15]) return; 
+
+      let st = new Date(r[15]);
+      if (isNaN(st)) return;
+      let en = new Date(r[16]);
+      if (isNaN(en)) en = st; 
+
+      let current = new Date(st);
+      current.setHours(0,0,0,0);
+      let endDay = new Date(en);
+      endDay.setHours(0,0,0,0);
+      
+      let daysCount = 0;
+      while(current <= endDay) {
+          const dateStr = `${('0'+current.getDate()).slice(-2)}/${('0'+(current.getMonth()+1)).slice(-2)}/${current.getFullYear()+543}`;
+          dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
+          current.setDate(current.getDate() + 1);
+          daysCount++;
+      }
+      if(daysCount === 0) daysCount = 1;
+
+      const plate = r[13];
+      if(plate) {
+         carCounts[plate] = (carCounts[plate] || 0) + daysCount; 
+         
+         const kmSt = parseFloat(r[17]);
+         const kmEn = parseFloat(r[18]);
+         if(!carKMs[plate]) carKMs[plate] = { min: Infinity, max: -Infinity };
+         if(!isNaN(kmSt) && kmSt < carKMs[plate].min) carKMs[plate].min = kmSt;
+         if(!isNaN(kmEn) && kmEn > carKMs[plate].max) carKMs[plate].max = kmEn;
+      }
+
+      const driver = r[12];
+      if(driver) {
+         driverCounts[driver] = (driverCounts[driver] || 0) + daysCount; 
+      }
+    });
+
+    const carKmLabels = []; const carKmData = [];
+    for(let plate in carKMs) {
+      if(carKMs[plate].min !== Infinity && carKMs[plate].max !== -Infinity) {
+        let diff = carKMs[plate].max - carKMs[plate].min;
+        if(diff > 0) { carKmLabels.push(plate); carKmData.push(diff); }
+      }
+    }
+
+    renderChart('chartDaily', 'line', 'จำนวนการใช้รถ (ครั้ง/วัน)', Object.keys(dailyCounts), Object.values(dailyCounts), '#0d6efd', false);
+    renderChart('chartCarCount', 'bar', 'จำนวนครั้งที่ใช้รถแต่ละคัน (นับตามวัน)', Object.keys(carCounts), Object.values(carCounts), '#198754', true);
+    renderChart('chartDriverCount', 'bar', 'จำนวนครั้งของ พขร. (นับตามวัน)', Object.keys(driverCounts), Object.values(driverCounts), '#ffc107', true);
+    renderChart('chartCarKm', 'bar', 'ระยะทางที่ขับรวม (กม.)', carKmLabels, carKmData, '#dc3545', true);
+  }
+
+  function renderChart(canvasId, type, label, labels, data, color, isHorizontal = false) {
+    if(charts[canvasId]) charts[canvasId].destroy();
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    
+    let options = { responsive: true, maintainAspectRatio: false };
+    if(isHorizontal) {
+       options.indexAxis = 'y'; 
+       options.scales = { x: { beginAtZero: true } };
+    } else {
+       options.scales = { y: { beginAtZero: true } };
+    }
+    
+    charts[canvasId] = new Chart(ctx, {
+      type: type,
+      data: {
+        labels: labels,
+        datasets: [{ label: label, data: data, backgroundColor: color, borderColor: color, borderWidth: 1 }]
+      },
+      options: options
+    });
+  }
 
   // ================= 🟢 ฟังก์ชันระบบน้ำมัน 🟢 =================
   const modalOilReq = new bootstrap.Modal(document.getElementById('modalOilRequest'));
