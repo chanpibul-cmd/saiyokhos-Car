@@ -556,7 +556,7 @@
   async function checkLoginOilApprove() {
     if(!unlockedOil) {
       const { value: pass } = await Swal.fire({ title: '🔐 ปลดล็อกสำหรับผู้อนุมัติ', input: 'password', showCancelButton: true });
-      if (pass === '5678') { unlockedOil = true; Swal.fire('สำเร็จ', 'เข้าสู่ระบบอนุมัติ', 'success'); } 
+      if (pass === '11278') { unlockedOil = true; Swal.fire('สำเร็จ', 'เข้าสู่ระบบอนุมัติ', 'success'); } 
       else { if(pass) Swal.fire('ผิดพลาด', 'รหัสผิด!', 'error'); return; }
     }
     openOilPending();
