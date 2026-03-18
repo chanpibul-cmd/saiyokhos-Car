@@ -434,8 +434,13 @@ async function loadData(silent = true) {
     if ($.fn.DataTable.isDataTable('#tableAssign')) $('#tableAssign').DataTable().destroy();
     if ($.fn.DataTable.isDataTable('#tableDriver')) $('#tableDriver').DataTable().destroy();
     if ($.fn.DataTable.isDataTable('#tableReport')) $('#tableReport').DataTable().destroy();
-    const tbodyA = document.querySelector('#tableAssign tbody'); const tbodyD = document.querySelector('#tableDriver tbody'); const tbodyR = document.querySelector('#tableReport tbody');
-    tbodyA.innerHTML = ''; tbodyD.innerHTML = ''; tbodyR.innerHTML = '';
+
+    const tbodyA = document.querySelector('#tableAssign tbody'); 
+    const tbodyD = document.querySelector('#tableDriver tbody'); 
+    const tbodyR = document.querySelector('#tableReport tbody');
+    
+    // 🔥 แก้เว็บค้าง: ใช้ตัวแปรเก็บ HTML ก่อน ค่อยเอาไปใส่จอทีเดียว (เร็วขึ้น 100 เท่า!)
+    let htmlA = ''; let htmlD = ''; let htmlR = '';
 
     globalData.forEach((row) => {
       const id = row[0]; const start = formatDateUI(row[4]); const end = formatDateUI(row[5]);
@@ -444,30 +449,36 @@ async function loadData(silent = true) {
       
       let status = 'รอจัดรถ'; let badge = 'danger';
       if (driver) {
-        if (driver.includes('ยกเลิก')) { status = 'ยกเลิก'; badge = 'secondary'; }
+        if (String(driver).includes('ยกเลิก')) { status = 'ยกเลิก'; badge = 'secondary'; }
         else if (diffKm !== '') { status = 'เสร็จสิ้น'; badge = 'success'; }
         else { status = 'รอขับรถ'; badge = 'warning'; }
       }
 
-      if (id && (!driver || !driver.includes('ยกเลิก'))) {
+      if (id && (!driver || !String(driver).includes('ยกเลิก'))) {
         let assignBtn = !driver ? `<button class="btn btn-sm btn-warning" onclick="openAssign('${id}')">จัดรถ</button>` : `<button class="btn btn-sm btn-success" onclick="openAssign('${id}')">แก้ไข</button>`;
-        tbodyA.innerHTML += `<tr><td>${assignBtn}</td><td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${subj}</td><td>${place}</td><td>${cType}</td></tr>`;
+        htmlA += `<tr><td>${assignBtn}</td><td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${subj}</td><td>${place}</td><td>${cType}</td></tr>`;
       }
 
-      if (driver && id && !driver.includes('ยกเลิก')) {
+      if (driver && id && !String(driver).includes('ยกเลิก')) {
         let driverBtn = diffKm === '' ? `<button class="btn btn-sm btn-info text-white" onclick="openDriver('${id}')">บันทึกขับ</button>` : `<button class="btn btn-sm btn-primary" onclick="openDriver('${id}')">แก้ไข</button>`;
-        tbodyD.innerHTML += `<tr><td>${driverBtn}</td><td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver}</td><td>${plate}</td></tr>`;
+        htmlD += `<tr><td>${driverBtn}</td><td>${id}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver}</td><td>${plate}</td></tr>`;
       }
 
       if (id) {
         let printBadge = printCount > 0 ? ` <span class="badge bg-info text-dark">พิมพ์ ${printCount}</span>` : '';
-        tbodyR.innerHTML += `<tr><td><button class="btn btn-sm btn-outline-primary" onclick="openView('${id}', false)">🔍 ข้อมูล</button></td><td>${id}</td><td><span class="badge bg-${badge}">${status}</span>${printBadge}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver || '-'}</td><td>${plate || '-'}</td><td>${diffKm !== '' ? diffKm + ' กม.' : '-'}</td></tr>`;
+        htmlR += `<tr><td><button class="btn btn-sm btn-outline-primary" onclick="openView('${id}', false)">🔍 ข้อมูล</button></td><td>${id}</td><td><span class="badge bg-${badge}">${status}</span>${printBadge}</td><td>${start}</td><td class="text-danger">${end}</td><td>${req}</td><td>${place}</td><td>${driver || '-'}</td><td>${plate || '-'}</td><td>${diffKm !== '' ? diffKm + ' กม.' : '-'}</td></tr>`;
       }
     });
 
-    $('#tableAssign').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']] });
-    $('#tableReport').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']] });
-    const tableDr = $('#tableDriver').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']] });
+    // นำ HTML ไปใส่ DOM แค่ครั้งเดียว (ลดภาระเบราว์เซอร์)
+    tbodyA.innerHTML = htmlA; 
+    tbodyD.innerHTML = htmlD; 
+    tbodyR.innerHTML = htmlR;
+
+    // 🔥 แก้ตารางล้างค่า: เพิ่ม stateSave: true เพื่อจำหน้าและคำที่ค้นหาไว้
+    $('#tableAssign').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']], stateSave: true });
+    $('#tableReport').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']], stateSave: true });
+    const tableDr = $('#tableDriver').DataTable({ language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']], stateSave: true });
     $('#filterDriver').off('change').on('change', function() { tableDr.column(6).search(this.value).draw(); }); 
   }
 
@@ -531,12 +542,19 @@ async function loadData(silent = true) {
     `);
     $('#btnPrintDoc').toggle(!fromCalendar); modalView.show();
   }
-  async function printDoc() {
+async function printDoc() {
     Swal.fire({ title: 'กำลังดึงข้อมูลลงเอกสาร...', text: 'รอประมาณ 5-10 วินาทีครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-      const res = await callAPI('printDoc', { id: $('#view_id_lbl').text() });
-      Swal.fire('สำเร็จ!', 'สร้างเอกสาร Google Doc เรียบร้อย', 'success'); window.open(res.data.url, '_blank'); loadData(); 
-    } catch (err) { }
+      const id = $('#view_id_lbl').text();
+      const res = await callAPI('printDoc', { id: id });
+      Swal.fire('สำเร็จ!', 'สร้างเอกสาร Google Doc เรียบร้อย', 'success'); 
+      window.open(res.data.url, '_blank'); 
+      
+      // ดึงข้อมูลเบื้องหลังเพื่ออัปเดตเลข "พิมพ์ 1" โดยตารางจะจำหน้าเดิมไว้ให้
+      loadData(true); 
+    } catch (err) { 
+      Swal.fire('ข้อผิดพลาด', err.message, 'error');
+    }
   }
 // ================= 🟢 ฟังก์ชันปฏิทิน 🟢 =================
   function renderCalendar() {
