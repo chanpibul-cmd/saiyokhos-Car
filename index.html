@@ -22,6 +22,26 @@
     .card { border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
     .chart-container { position: relative; height: 300px; width: 100%; }
     .sig-canvas { border: 1px solid #ced4da; border-radius: 6px; width: 100%; height: 150px; background: #f8f9fa; touch-action: none; cursor: crosshair; }
+    /* ================= 🟢 ตั้งค่าสำหรับตอนสั่งพิมพ์ (Print) 🟢 ================= */
+    @media print {
+      body * { visibility: hidden; }
+      #printTemplate, #printTemplate * { visibility: visible; }
+      #printTemplate {
+        position: absolute; left: 0; top: 0; width: 100%; display: block !important;
+        font-family: 'Sarabun', sans-serif; font-size: 16px; line-height: 1.8; color: #000;
+      }
+      @page { size: A4; margin: 15mm 20mm; } /* ตั้งขอบกระดาษ */
+    }
+    
+    #printTemplate { display: none; background: white; padding: 20mm; }
+    .print-line {
+      border-bottom: 1px dotted #000;
+      display: inline-block;
+      text-align: center;
+      padding: 0 5px;
+      color: #000;
+      min-height: 20px;
+    }
   </style>
 </head>
 <body>
@@ -115,6 +135,108 @@
     </div>
   </div>
 
+<div id="printTemplate">
+  <div class="d-flex justify-content-end mb-3">
+    <div style="width: 250px;">
+      เลขที่รับ<span class="print-line" style="width: 180px;" id="prt_id"></span><br>
+      วันที่<span class="print-line" style="width: 195px;" id="prt_date"></span>
+    </div>
+  </div>
+
+  <div>
+    ข้าพเจ้า<span class="print-line" style="width: 320px;" id="prt_req"></span>
+    ฝ่าย/กลุ่มงาน<span class="print-line" style="width: 250px;" id="prt_group"></span>
+  </div>
+  <div>
+    ขออนุญาตใช้รถยนต์เพื่อไปราชการ(งาน/กิจกรรม)<span class="print-line" style="width: 420px;" id="prt_subj"></span>
+  </div>
+  <div>
+    ที่<span class="print-line" style="width: 690px;" id="prt_place"></span>
+  </div>
+  <div>
+    โดยมีคนนั่ง(ไม่รวมถึงคนขับ) <span class="print-line" style="width: 100px;" id="prt_qty"></span>คน
+    ได้แก่<span class="print-line" style="width: 335px;" id="prt_include"></span>
+  </div>
+  <div class="mb-2">
+    <span class="print-line" style="width: 100%;"></span>
+  </div>
+  <div>
+    ออกเดินทาง วันที่<span class="print-line" style="width: 320px;" id="prt_sd"></span>
+    เวลา<span class="print-line" style="width: 190px;" id="prt_st"></span>
+  </div>
+  <div class="mb-4">
+    กลับถึง &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;วันที่<span class="print-line" style="width: 320px;" id="prt_ed"></span>
+    เวลา<span class="print-line" style="width: 190px;" id="prt_et"></span>
+  </div>
+
+  <div class="d-flex justify-content-end mb-3 text-center">
+    <div style="width: 300px;">
+      ลงชื่อ<span class="print-line" style="width: 180px;" id="prt_req_sign"></span>ผู้ขอใช้รถ<br>
+      (<span class="print-line" style="width: 180px;" id="prt_req_name"></span>)<br>
+      ตำแหน่ง<span class="print-line" style="width: 180px;" id="prt_req_pos"></span>
+    </div>
+  </div>
+
+  <div>
+    เห็นควรอนุมัติให้ใช้รถยนต์ยี่ห้อ<span class="print-line" style="width: 200px;" id="prt_model"></span>
+    หมายเลขทะเบียน<span class="print-line" style="width: 220px;" id="prt_plate"></span>
+  </div>
+  <div class="mb-4">
+    โดยให้<span class="print-line" style="width: 200px;" id="prt_driver"></span>เป็นผู้ขับ 
+    เติมน้ำมัน<span class="print-line" style="width: 80px;" id="prt_fuel"></span>ลิตร 
+    เป็นเงิน<span class="print-line" style="width: 100px;" id="prt_cost"></span>บาท
+  </div>
+
+  <div class="d-flex justify-content-end mb-4 text-center">
+    <div style="width: 350px;">
+      ลงชื่อ <span class="print-line" style="width: 180px;"></span>หัวหน้ากลุ่มงานบริหารทั่วไป<br>
+      (นางสาวชรินช์ทิพย์ ศรีนิล)
+    </div>
+  </div>
+
+  <div class="mb-4">
+    คำสั่ง<span class="print-line" style="width: 50px;"></span>อนุมัติ
+  </div>
+
+  <div class="mb-4 text-center" style="width: 250px;">
+    ลงชื่อ<span class="print-line" style="width: 150px;"></span>ผู้อนุมัติ<br>
+    (นายจิรภัทร พุ่มฉายา)<br>
+    ผู้อำนวยการโรงพยาบาลไทรโยค<br>
+    วันที่<span class="print-line" style="width: 150px;"></span>
+  </div>
+
+  <hr style="border-top: 1px solid #000; margin: 20px 0;">
+
+  <div class="fw-bold">รายงานของพนักงานขับรถยนต์</div>
+  <div>
+    ออกเดินทาง วันที่<span class="print-line" style="width: 350px;" id="prt_asd"></span>
+    เวลา<span class="print-line" style="width: 180px;" id="prt_ast"></span>
+  </div>
+  <div>
+    กลับถึง &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;วันที่<span class="print-line" style="width: 350px;" id="prt_aed"></span>
+    เวลา<span class="print-line" style="width: 180px;" id="prt_aet"></span>
+  </div>
+  <div>
+    สถานที่ไป<span class="print-line" style="width: 630px;" id="prt_aplace"></span>
+  </div>
+  <div>
+    เลขกิโลเมตรเมื่อออกเดินทาง<span class="print-line" style="width: 150px;" id="prt_skm"></span>
+    เลขกิโลเมตรเมื่อกลับถึง<span class="print-line" style="width: 150px;" id="prt_ekm"></span>
+    รวม<span class="print-line" style="width: 100px;" id="prt_dkm"></span>
+  </div>
+  <div class="mb-4">
+    รถยนต์ยี่ห้อ<span class="print-line" style="width: 150px;" id="prt_amodel"></span>
+    หมายเลขทะเบียน<span class="print-line" style="width: 200px;" id="prt_aplate"></span>
+  </div>
+
+  <div class="d-flex justify-content-end text-center">
+    <div style="width: 300px;">
+      ลงชื่อ<span class="print-line" style="width: 180px;" id="prt_d_sign"></span>พนักงานขับรถยนต์<br>
+      (<span class="print-line" style="width: 180px;" id="prt_d_name"></span>)
+    </div>
+  </div>
+</div>
+  
   <div id="page-dashboard" class="page-section">
     <div class="card p-4">
       <h4 class="mb-3 text-primary">📈 แดชบอร์ดสรุปข้อมูลการใช้รถ</h4>
@@ -542,19 +664,60 @@ async function loadData(silent = true) {
     `);
     $('#btnPrintDoc').toggle(!fromCalendar); modalView.show();
   }
-async function printDoc() {
-    Swal.fire({ title: 'กำลังดึงข้อมูลลงเอกสาร...', text: 'รอประมาณ 5-10 วินาทีครับ', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-    try {
-      const id = $('#view_id_lbl').text();
-      const res = await callAPI('printDoc', { id: id });
-      Swal.fire('สำเร็จ!', 'สร้างเอกสาร Google Doc เรียบร้อย', 'success'); 
-      window.open(res.data.url, '_blank'); 
-      
-      // ดึงข้อมูลเบื้องหลังเพื่ออัปเดตเลข "พิมพ์ 1" โดยตารางจะจำหน้าเดิมไว้ให้
-      loadData(true); 
-    } catch (err) { 
-      Swal.fire('ข้อผิดพลาด', err.message, 'error');
-    }
+// 🟢 ฟังก์ชันช่วยแปลงวันที่สำหรับหน้าพิมพ์
+  function pDate(dStr) {
+    if(!dStr) return ''; const d = new Date(dStr); if(isNaN(d)) return '';
+    const m = ["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];
+    return `${d.getDate()} ${m[d.getMonth()]} ${d.getFullYear()+543}`;
+  }
+  function pTime(dStr) {
+    if(!dStr) return ''; const d = new Date(dStr); if(isNaN(d)) return '';
+    return `${('0'+d.getHours()).slice(-2)}:${('0'+d.getMinutes()).slice(-2)} น.`;
+  }
+
+  // 🟢 ฟังก์ชันสั่งพิมพ์
+  async function printDoc() {
+    const id = $('#view_id_lbl').text();
+    const row = globalData.find(r => r[0] == id);
+    if(!row) return;
+
+    // เติมข้อมูลลงในแบบฟอร์ม
+    $('#prt_id').text(row[0] || '');
+    $('#prt_date').text(pDate(row[1]));
+    $('#prt_req').text(row[2] || ''); $('#prt_req_name').text(row[2] || ''); $('#prt_req_sign').text(row[2] || '');
+    $('#prt_group').text(row[3] || '');
+    $('#prt_subj').text(row[6] || '');
+    $('#prt_place').text(row[7] || ''); $('#prt_aplace').text(row[7] || '');
+    $('#prt_qty').text(row[8] || '');
+    $('#prt_include').text(row[9] || '');
+    
+    // เวลาขอ
+    $('#prt_sd').text(pDate(row[4])); $('#prt_st').text(pTime(row[4]));
+    $('#prt_ed').text(pDate(row[5])); $('#prt_et').text(pTime(row[5]));
+
+    // จัดรถ
+    $('#prt_model').text(row[14] || ''); $('#prt_amodel').text(row[14] || '');
+    $('#prt_plate').text(row[13] || ''); $('#prt_aplate').text(row[13] || '');
+    $('#prt_driver').text(row[12] || ''); $('#prt_d_name').text(row[12] || ''); $('#prt_d_sign').text(row[12] || '');
+    $('#prt_fuel').text(row[20] || ''); $('#prt_cost').text(row[21] || '');
+
+    // พขร. ขับจริง
+    $('#prt_asd').text(pDate(row[15])); $('#prt_ast').text(pTime(row[15]));
+    $('#prt_aed').text(pDate(row[16])); $('#prt_aet').text(pTime(row[16]));
+    $('#prt_skm').text(row[17] || ''); $('#prt_ekm').text(row[18] || ''); $('#prt_dkm').text(row[19] || '');
+
+    // ปิด Modal รายละเอียดก่อน
+    modalView.hide();
+
+    // หน่วงเวลาเล็กน้อยให้หน้าต่าง Modal หายไปก่อน แล้วค่อยเด้งหน้าต่าง Print
+    setTimeout(() => {
+       window.print();
+       
+       // แอบบันทึกสถิติการพิมพ์ไว้เบื้องหลัง
+       fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'printDoc', payload: { id: id } }) })
+         .then(() => loadData(true)).catch(e => console.error(e));
+         
+    }, 500); 
   }
 // ================= 🟢 ฟังก์ชันปฏิทิน 🟢 =================
   function renderCalendar() {
