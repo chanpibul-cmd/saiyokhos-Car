@@ -1,6 +1,7 @@
 // *** ใส่ URL Web App ของคุณที่อัปเดตใหม่ล่าสุดตรงนี้ ***
   const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwoatvXXCf37JqNgYsF0WrQNxDgKLklRrQnCQfNAHVW8ECJIvnxZw3Bc-LZWva8jB6L2Q/exec'; 
   
+
   let globalData = []; let carList = []; let userList = []; 
   let unlockedAssign = false; let unlockedDriver = false; let unlockedOil = false;
   let calendar; let charts = {}; 
@@ -24,7 +25,8 @@
         userList = d.users;
         populateSelect('req_c', userList.map(u => u.name), 'เลือกผู้ขอ');
         populateSelect('assign_m', d.drivers, 'เลือกผู้ขับรถ');
-        populateSelect('filterDriver', d.drivers, '-- กรองผู้ขับรถทั้งหมด --'); 
+        populateSelect('filterDriver', d.drivers, '-- กรองผู้ขับรถทั้งหมด --');
+        $('#req_c').select2({ theme: 'bootstrap-5', placeholder: 'พิมพ์ค้นหาชื่อ...', width: '100%' }); 
         
         carList = d.cars;
         const plateSelect = document.getElementById('assign_n');
@@ -35,22 +37,25 @@
           plateSelect.innerHTML += `<option value="${c.plate}">${c.plate}</option>`;
           oilCarSelect.innerHTML += `<option value="${c.plate}">${c.plate}</option>`;
         });
+        $('#assign_n').select2({ theme: 'bootstrap-5', dropdownParent: $('#modalAssign'), placeholder: 'เลือกทะเบียนรถ', width: '100%' });
       }
     } catch(err) { console.error(err); }
   }
 
-  document.getElementById('req_c').addEventListener('change', function() {
-     const selectedUser = userList.find(u => u.name === this.value);
-     document.getElementById('req_d').value = selectedUser ? selectedUser.group : ''; 
+  $('#req_c').on('change', function() {
+     const val = $(this).val();
+     const selectedUser = userList.find(u => u.name === val);
+     $('#req_d').val(selectedUser ? selectedUser.group : '');
   });
 
   function populateSelect(id, arr, placeholder) {
     const el = document.getElementById(id); el.innerHTML = `<option value="" selected>${placeholder}</option>`;
     arr.forEach(item => el.innerHTML += `<option value="${item}">${item}</option>`);
   }
-  document.getElementById('assign_n').addEventListener('change', function() {
-     const selectedCar = carList.find(c => c.plate === this.value);
-     if(selectedCar) document.getElementById('assign_o').value = selectedCar.model;
+  $('#assign_n').on('change', function() {
+     const val = $(this).val();
+     const selectedCar = carList.find(c => String(c.plate).trim() === String(val).trim());
+     $('#assign_o').val(selectedCar ? selectedCar.model : '');
   });
 
   window.onload = () => {
@@ -244,9 +249,9 @@ async function loadData(silent = true) {
 
   const modalAssign = new bootstrap.Modal(document.getElementById('modalAssign'));
   function openAssign(id) {
-    $('#assign_id').val(id); $('#assign_id_lbl').text(id); $('#formAssign')[0].reset();
+    $('#assign_id').val(id); $('#assign_id_lbl').text(id); $('#formAssign')[0].reset(); $('#assign_n').val('').trigger('change');
     const row = globalData.find(r => r[0] == id);
-    if (row) { if(row[12]) $('#assign_m').val(row[12]); if(row[13]){ $('#assign_n').val(row[13]); $('#assign_o').val(row[14]); } }
+    if (row) { if(row[12]) $('#assign_m').val(row[12]); if(row[13]){ $('#assign_n').val(row[13]).trigger('change'); $('#assign_o').val(row[14]); } }
     modalAssign.show();
   }
   document.getElementById('formAssign').addEventListener('submit', async (e) => {
@@ -704,3 +709,4 @@ async function loadOilData(silent = true) {
   // Resize canvas when modal opens on mobile
   document.getElementById('modalOilRequest').addEventListener('shown.bs.modal', () => { if(sigPad1) sigPad1.resize(); });
   document.getElementById('modalOilApprove').addEventListener('shown.bs.modal', () => { if(sigPad2) sigPad2.resize(); });
+
