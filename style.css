@@ -27,3 +27,20 @@ body { background-color: #f4f7f6; font-family: 'Sarabun', sans-serif; -webkit-us
       color: #000;
       min-height: 20px;
     }
+/* Mobile Responsive Menu */
+@media (max-width: 768px) {
+  #menuTabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start !important;
+    padding-bottom: 5px;
+    -webkit-overflow-scrolling: touch;
+  }
+  #menuTabs::-webkit-scrollbar {
+    height: 4px;
+  }
+  #menuTabs::-webkit-scrollbar-thumb {
+    background-color: #ced4da;
+    border-radius: 4px;
+  }
+}

@@ -1,5 +1,5 @@
 // *** ใส่ URL Web App ของคุณที่อัปเดตใหม่ล่าสุดตรงนี้ ***
-  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxYK4FdVkDwQ9d0KNM2qcY8WMkRrs_Iy-1qqMbtzWy4tk2BMpnZq2WQJv6Xbdf9QWw6Kw/exec'; 
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxr4vsWKnqavqGqmbk5XrxBPFGRuFxpYr3Io5YwIiy4gA3pbExOLAyiT46vhsdT8KJXhg/exec'; 
   
   let globalData = []; let carList = []; let userList = []; 
   let unlockedAssign = false; let unlockedDriver = false; let unlockedOil = false;
@@ -215,7 +215,7 @@ async function loadData(silent = true) {
     updateDataTable('#tableAssign', assignData, [[1, 'desc']]);
     
     if (!$.fn.DataTable.isDataTable('#tableDriver')) {
-        const tableDr = $('#tableDriver').DataTable({ data: driverData, language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']], stateSave: true });
+        const tableDr = $('#tableDriver').DataTable({ data: driverData, responsive: true, language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" }, order: [[1, 'desc']], stateSave: true });
         $('#filterDriver').off('change').on('change', function() { tableDr.column(6).search(this.value).draw(); }); 
     } else {
         $('#tableDriver').DataTable().clear().rows.add(driverData).draw(false);
@@ -229,7 +229,7 @@ async function loadData(silent = true) {
           $(selector).DataTable().clear().rows.add(dataset).draw(false);
       } else {
           $(selector).DataTable({
-              data: dataset,
+              data: dataset, responsive: true,
               language: { url: "//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json" },
               order: order,
               stateSave: true
@@ -666,11 +666,12 @@ async function loadOilData(silent = true) {
     const ctx = canvas.getContext('2d');
     let drawing = false;
 
-    // Fix Blur issue for high DPI
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width || 300; canvas.height = rect.height || 150;
-    
-    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+    const resize = () => {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width || 300; canvas.height = 150;
+      ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
+    };
+    resize();
 
     const getPos = (e) => {
       const r = canvas.getBoundingClientRect();
@@ -685,7 +686,7 @@ async function loadOilData(silent = true) {
 
     canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stop); canvas.addEventListener('mouseout', stop);
     canvas.addEventListener('touchstart', start, { passive: false }); canvas.addEventListener('touchmove', draw, { passive: false }); canvas.addEventListener('touchend', stop, { passive: false });
-    return { canvas, ctx };
+    return { canvas, ctx, resize };
   }
   function clearCanvas(pad) { pad.ctx.clearRect(0, 0, pad.canvas.width, pad.canvas.height); }
   function isCanvasBlank(canvas) {
@@ -700,3 +701,7 @@ async function loadOilData(silent = true) {
       e.preventDefault(); Swal.fire({ icon: 'warning', title: 'สงวนลิขสิทธิ์', text: 'ไม่อนุญาตให้คัดลอกข้อมูล', timer: 1500, showConfirmButton: false });
     }
   });
+
+  // Resize canvas when modal opens on mobile
+  document.getElementById('modalOilRequest').addEventListener('shown.bs.modal', () => { if(sigPad1) sigPad1.resize(); });
+  document.getElementById('modalOilApprove').addEventListener('shown.bs.modal', () => { if(sigPad2) sigPad2.resize(); });
