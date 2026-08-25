@@ -1,5 +1,5 @@
 // *** ใส่ URL Web App ของคุณที่อัปเดตใหม่ล่าสุดตรงนี้ ***
-  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw7gOBwvz7ZyF7QBIKaXChKwhXcOu-LACBRycKdWajH3UOqGTcJaJD1zX50q4byu2C3MQ/exec'; 
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxr4vsWKnqavqGqmbk5XrxBPFGRuFxpYr3Io5YwIiy4gA3pbExOLAyiT46vhsdT8KJXhg/exec'; 
   
   let globalData = []; let carList = []; let userList = []; 
   let unlockedAssign = false; let unlockedDriver = false; let unlockedOil = false;
