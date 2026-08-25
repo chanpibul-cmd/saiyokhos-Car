@@ -22,8 +22,7 @@
       if (json.status === 'success') {
         const d = json.data;
         userList = d.users;
-        const listReqC = document.getElementById('listReqC');
-        listReqC.innerHTML = ''; userList.forEach(u => listReqC.innerHTML += `<option value="${u.name}">`);
+        populateSelect('req_c', userList.map(u => u.name), 'เลือกผู้ขอ');
         populateSelect('assign_m', d.drivers, 'เลือกผู้ขับรถ');
         populateSelect('filterDriver', d.drivers, '-- กรองผู้ขับรถทั้งหมด --'); 
         
@@ -40,7 +39,7 @@
     } catch(err) { console.error(err); }
   }
 
-  document.getElementById('req_c').addEventListener('input', function() {
+  document.getElementById('req_c').addEventListener('change', function() {
      const selectedUser = userList.find(u => u.name === this.value);
      document.getElementById('req_d').value = selectedUser ? selectedUser.group : ''; 
   });
