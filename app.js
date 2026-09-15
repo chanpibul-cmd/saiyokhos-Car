@@ -1,7 +1,6 @@
 // *** ใส่ URL Web App ของคุณที่อัปเดตใหม่ล่าสุดตรงนี้ ***
-  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwoatvXXCf37JqNgYsF0WrQNxDgKLklRrQnCQfNAHVW8ECJIvnxZw3Bc-LZWva8jB6L2Q/exec'; 
+  const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxpjos1-CrNS9vRn0NNdISnMMujhVRklYtkZBgXLD2zi_RCJ8WoGFs-PhtziAlYFIGbRw/exec'; 
   
-
   let globalData = []; let carList = []; let userList = []; 
   let unlockedAssign = false; let unlockedDriver = false; let unlockedOil = false;
   let calendar; let charts = {}; 
@@ -16,10 +15,29 @@
   // ระบบวาดลายเซ็น (Canvas)
   let sigPad1, sigPad2;
 
+    // ระบบเรียก API พร้อมระบบตรวจสอบการตอบกลับเพื่อป้องกัน Unexpected token '<'
+  async function fetchAPI(action, payload = null) {
+    const bodyObj = payload !== null ? { action, payload } : { action };
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      body: JSON.stringify(bodyObj)
+    });
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (parseErr) {
+      if (text.includes('<!DOCTYPE') || text.includes('<html') || text.includes('ไม่พบเพจ') || text.includes('ขออภัย')) {
+        throw new Error('Google Apps Script ตอบกลับเป็นหน้าข้อผิดพลาด (HTML)\nสาเหตุ: ยังไม่ได้ตั้งค่าสิทธิ์การเข้าถึงเป็น "ทุกคน (Anyone)" หรือยังไม่ได้ตั้ง "ดำเนินการในฐานะ (Execute as)" เป็น "ฉัน (Me)"');
+      }
+      throw new Error('ข้อมูลจากเซิร์ฟเวอร์ไม่ถูกต้อง: ' + parseErr.message);
+    }
+    return data;
+  }
+
   async function loadOptions() {
     try {
-      const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getOptions' }) });
-      const json = await res.json();
+      const json = await fetchAPI('getOptions');
       if (json.status === 'success') {
         const d = json.data;
         userList = d.users;
@@ -118,8 +136,7 @@ function switchPage(pageId, tabElement) {
   async function callAPI(action, payload) {
     Swal.fire({ title: 'รอสักครู่...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     try {
-      const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action, payload }) });
-      const data = await res.json();
+      const data = await fetchAPI(action, payload);
       if (data.status !== 'success') throw new Error(data.message);
       return data;
     } catch (err) { Swal.fire('ข้อผิดพลาด', err.message, 'error'); throw err; }
@@ -143,8 +160,7 @@ async function loadData(silent = true) {
     if (!silent) Swal.fire({ title: 'กำลังดึงข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     
     try {
-      const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
-      const json = await res.json();
+      const json = await fetchAPI('getData');
       
       if (json.status !== 'success') throw new Error(json.message);
       
@@ -549,8 +565,7 @@ async function loadOilData(silent = true) {
     if (!silent) Swal.fire({ title: 'โหลดข้อมูลน้ำมัน...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
     
     try {
-      const res = await fetch(WEB_APP_URL, { method: 'POST', body: JSON.stringify({ action: 'getOilData' }) });
-      const json = await res.json();
+      const json = await fetchAPI('getOilData');
       
       if(json.status !== 'success') throw new Error(json.message);
       
@@ -709,4 +724,3 @@ async function loadOilData(silent = true) {
   // Resize canvas when modal opens on mobile
   document.getElementById('modalOilRequest').addEventListener('shown.bs.modal', () => { if(sigPad1) sigPad1.resize(); });
   document.getElementById('modalOilApprove').addEventListener('shown.bs.modal', () => { if(sigPad2) sigPad2.resize(); });
-
