@@ -3491,7 +3491,7 @@ function initCachedOptions() {
  * ดึงข้อมูล Master Data ล่าสุดจาก Google Apps Script พร้อมระบบ Auto-Retry
  * และเก็บลง localStorage เพื่อให้ใช้งานได้ออฟไลน์/รวดเร็วในครั้งถัดไป
  */
-async function loadOptions(forceRefresh = false, retries = 2) {
+async function loadOptions(forceRefresh = false, retries = 1) {
   // หากยังไม่มีข้อมูลในแรม ให้ลองดึงจาก Cache ทันทีเป็นอันดับแรก
   if (!userList.length || !driverList.length || !carList.length) {
     initCachedOptions();
@@ -3500,7 +3500,7 @@ async function loadOptions(forceRefresh = false, retries = 2) {
   for (let attempt = 1; attempt <= retries + 1; attempt++) {
     try {
       const payload = forceRefresh ? { forceRefresh: true } : null;
-      const json = await fetchAPI('getOptions', payload, 18000);
+      const json = await fetchAPI('getOptions', payload, 10000);
       if (json && json.status === 'success' && json.data) {
         const d = json.data;
         const newUsers = d.users || [];
@@ -3778,8 +3778,27 @@ async function loadData(silent = true) {
   }
 
   try {
-    const json = await fetchAPI('getData');
-    if (json.status !== 'success') throw new Error(json.message);
+    let json = null;
+    let lastErr = null;
+
+    // ลองดึงข้อมูลหลัก (Auto-retry สูงสุด 2 ครั้ง)
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        json = await fetchAPI('getData', null, 30000);
+        if (json && json.status === 'success') break;
+        throw new Error(json?.message || 'สถานะไม่สำเร็จ');
+      } catch (e) {
+        lastErr = e;
+        if (attempt < 2) {
+          console.warn(`[LoadData] รอบที่ ${attempt} ไม่สำเร็จ กำลังลองใหม่ใน 1.5 วินาที...`, e);
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      }
+    }
+
+    if (!json || json.status !== 'success') {
+      throw lastErr || new Error('ไม่สามารถดึงข้อมูลจากเซิร์ฟเวอร์ได้');
+    }
 
     globalData = json.data || [];
 
@@ -3802,6 +3821,11 @@ async function loadData(silent = true) {
 
     updateBadgeCounters();
     updateSyncBadge('online', 'ออนไลน์ (ซิงค์แล้ว)');
+
+    // หลังจากโหลดข้อมูลหลักสำเร็จและระบบออนไลน์แล้ว ให้ลองซิงค์ Options ใน Background อย่างเงียบๆ
+    setTimeout(() => {
+      loadOptions(false, 1).catch(err => console.warn('[Background Options] Sync notice:', err));
+    }, 800);
   } catch (err) {
     console.error('Load Data Error:', err);
     updateSyncBadge('offline', 'ออฟไลน์ / มีข้อผิดพลาด');
@@ -5302,16 +5326,11 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // Load Data
-  // 1. ดึงแคชขึ้นมาแสดงผลทันทีแบบไม่มีดีเลย์ (0ms)
+  // 1. ดึงแคชตัวเลือกขึ้นมาแสดงผลทันที (0ms)
   initCachedOptions();
 
-  // 2. ซิงค์ Options จากระบบ
-  loadOptions();
-
-  // 3. หน่วงเวลา 200ms เพื่อไม่ให้ Request ชนกับ Google Apps Script พร้อมกัน
-  setTimeout(() => {
-    loadData(true);
-  }, 200);
+  // 2. โหลดข้อมูลหลักของระบบทันที (Data, Tables, Calendar, Dashboard, Online Badge)
+  loadData(true);
 });
 
 /* ==========================================================================
