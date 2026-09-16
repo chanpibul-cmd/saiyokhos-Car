@@ -1378,8 +1378,6 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     font-family: 'Sarabun', sans-serif !important;
     font-size: 15px !important;
     line-height: 1.8 !important;
-    color: #000000 !important;
-    background: #ffffff !important;
     box-shadow: none !important;
   }
 
@@ -1388,6 +1386,22 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     margin: 15mm 15mm;
   }
 }
+
+/* ==========================================================================
+   Utility Animations
+   ========================================================================== */
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spin-animation {
+  display: inline-block;
+  animation: spin 0.8s linear infinite;
+}
+
+
 
 </style>
 </head>
@@ -1519,7 +1533,12 @@ h1, h2, h3, h4, h5, h6, .font-heading {
             </div>
             <div class="row g-3">
               <div class="col-md-6">
-                <label class="form-label" for="req_c">ผู้ขอใช้รถ <span class="text-danger">*</span></label>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="form-label mb-0" for="req_c">ผู้ขอใช้รถ <span class="text-danger">*</span></label>
+                  <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 text-muted" onclick="refreshOptionsManual(this)" title="รีเฟรชรายชื่อจากระบบ">
+                    <i class="bi bi-arrow-clockwise"></i> อัปเดตรายชื่อ
+                  </button>
+                </div>
                 <select id="req_c" class="form-select" required>
                   <option value="" disabled selected>กำลังโหลดรายชื่อ...</option>
                 </select>
@@ -2124,7 +2143,12 @@ h1, h2, h3, h4, h5, h6, .font-heading {
         <form id="formAssign">
           <input type="hidden" id="assign_id">
           <div class="mb-3">
-            <label class="form-label" for="assign_m">พนักงานขับรถ <span class="text-danger">*</span></label>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label mb-0" for="assign_m">พนักงานขับรถ <span class="text-danger">*</span></label>
+              <button type="button" class="btn btn-link btn-sm text-decoration-none p-0 text-muted" onclick="refreshOptionsManual(this)" title="รีเฟรชรายชื่อและข้อมูลรถ">
+                <i class="bi bi-arrow-clockwise"></i> อัปเดตรายชื่อ
+              </button>
+            </div>
             <select id="assign_m" class="form-select" required>
               <option value="" disabled selected>เลือกพนักงานขับรถ...</option>
             </select>
@@ -2527,7 +2551,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
 const CONFIG = {
   // URL Web App จาก Google Apps Script (อัปเดตใหม่)
-  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbx1fZOtla0uI_Y2b0bGmxo3orWV7KPCmH8PRjZwxHlEywwPbg9MRy7gd_jc8FP0EDFSNg/exec',
+  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbxTL_SAnMp_6NKz9OQOgzuZmw5JnU5JlGKicDsHR-0phNAeXiVYEEbpwnQIbwqJKhKbVA/exec',
 
   // ข้อมูลหน่วยงาน
   HOSPITAL_NAME: 'โรงพยาบาลไทรโยค',
@@ -3366,15 +3390,20 @@ let modalOilRep = null;
    1. API Communication
    ========================================================================== */
 
-async function fetchAPI(action, payload = null) {
+async function fetchAPI(action, payload = null, timeoutMs = 25000) {
   const url = window.CONFIG?.WEB_APP_URL || '';
   const bodyObj = payload !== null ? { action, payload } : { action };
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
   try {
     const res = await fetch(url, {
       method: 'POST',
-      body: JSON.stringify(bodyObj)
+      body: JSON.stringify(bodyObj),
+      signal: controller ? controller.signal : undefined
     });
+    if (timeoutId) clearTimeout(timeoutId);
 
     const text = await res.text();
     let data;
@@ -3390,6 +3419,11 @@ async function fetchAPI(action, payload = null) {
 
     return data;
   } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      console.warn(`API call [${action}] timed out after ${timeoutMs}ms`);
+      throw new Error(`การเชื่อมต่อใช้เวลานานเกินไป (${Math.round(timeoutMs/1000)}s) กรุณาลองใหม่อีกครั้ง`);
+    }
     console.warn(`API call [${action}] failed:`, err);
     throw err;
   }
@@ -3421,28 +3455,199 @@ async function callAPI(action, payload) {
 }
 
 /* ==========================================================================
-   2. Options & Master Data
+   2. Options & Master Data (Smart Cache & Resilience)
    ========================================================================== */
 
-async function loadOptions() {
-  try {
-    const json = await fetchAPI('getOptions');
-    if (json.status === 'success') {
-      const d = json.data;
-      userList = d.users || [];
-      driverList = d.drivers || [];
-      carList = d.cars || [];
+const CACHE_KEY_OPTIONS = 'car2_master_options';
 
-      populateUserSelect();
-      populateDriverSelects();
-      populateCarSelects();
+/**
+ * ดึงข้อมูล Master Data จาก localStorage ทันทีที่เปิดหน้าเว็บ (0ms)
+ * ช่วยให้ Dropdown มีข้อมูลแสดงทันทีโดยไม่ต้องรอโหลดเสร็จจาก Google Apps Script
+ */
+function initCachedOptions() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_OPTIONS);
+    if (raw) {
+      const cached = JSON.parse(raw);
+      if (cached && (cached.users?.length || cached.drivers?.length || cached.cars?.length)) {
+        userList = cached.users || [];
+        driverList = cached.drivers || [];
+        carList = cached.cars || [];
+
+        populateUserSelect();
+        populateDriverSelects();
+        populateCarSelects();
+        console.log(`[Cache] โหลดตัวเลือกจากเครื่องทันที: ผู้ขอ ${userList.length} คน, พขร. ${driverList.length} คน, รถ ${carList.length} คัน`);
+        return true;
+      }
     }
   } catch (err) {
-    console.warn('Could not load options from remote, using initial defaults:', err);
-    // กรณีที่ดึงไม่ได้ ให้เตรียมโครงสร้างไว้
+    console.warn('[Cache] ไม่สามารถอ่านแคชตัวเลือกได้:', err);
+  }
+  return false;
+}
+
+/**
+ * ดึงข้อมูล Master Data ล่าสุดจาก Google Apps Script พร้อมระบบ Auto-Retry
+ * และเก็บลง localStorage เพื่อให้ใช้งานได้ออฟไลน์/รวดเร็วในครั้งถัดไป
+ */
+async function loadOptions(forceRefresh = false, retries = 2) {
+  // หากยังไม่มีข้อมูลในแรม ให้ลองดึงจาก Cache ทันทีเป็นอันดับแรก
+  if (!userList.length || !driverList.length || !carList.length) {
+    initCachedOptions();
+  }
+
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
+    try {
+      const payload = forceRefresh ? { forceRefresh: true } : null;
+      const json = await fetchAPI('getOptions', payload, 18000);
+      if (json && json.status === 'success' && json.data) {
+        const d = json.data;
+        const newUsers = d.users || [];
+        const newDrivers = d.drivers || [];
+        const newCars = d.cars || [];
+
+        if (newUsers.length > 0) userList = newUsers;
+        if (newDrivers.length > 0) driverList = newDrivers;
+        if (newCars.length > 0) carList = newCars;
+
+        // บันทึกลง localStorage ทันที
+        try {
+          localStorage.setItem(CACHE_KEY_OPTIONS, JSON.stringify({
+            users: userList,
+            drivers: driverList,
+            cars: carList,
+            updatedAt: new Date().toISOString()
+          }));
+        } catch (storageErr) {
+          console.warn('[Cache] บันทึกแคชลงเครื่องไม่สำเร็จ:', storageErr);
+        }
+
+        populateUserSelect();
+        populateDriverSelects();
+        populateCarSelects();
+        console.log(`[Options] ซิงค์ตัวเลือกล่าสุดสำเร็จ (รอบที่ ${attempt}): ผู้ขอ ${userList.length}, พขร. ${driverList.length}, รถ ${carList.length}`);
+        return true;
+      }
+    } catch (err) {
+      console.warn(`[Options] ซิงค์ตัวเลือกรอบที่ ${attempt} ไม่สำเร็จ:`, err.message || err);
+      if (attempt <= retries) {
+        // หน่วงเวลาก่อนลองใหม่: 1.2s, 2.4s...
+        await new Promise(r => setTimeout(r, attempt * 1200));
+      }
+    }
+  }
+
+  // หากดึงจากเซิร์ฟเวอร์ไม่ได้และยังไม่มีข้อมูลเลย ให้เตรียมโครงสร้างเริ่มต้น
+  if (!userList.length || !driverList.length || !carList.length) {
     populateUserSelect();
     populateDriverSelects();
     populateCarSelects();
+  }
+  return false;
+}
+
+/**
+ * ปุ่มกดรีเฟรชรายชื่อ Master Data ด้วยตนเอง (Manual Refresh)
+ */
+async function refreshOptionsManual(btnEl) {
+  const icon = btnEl ? btnEl.querySelector('i') : null;
+  if (icon) icon.classList.add('spin-animation');
+  if (btnEl) btnEl.disabled = true;
+
+  try {
+    const success = await loadOptions(true, 1);
+    if (window.Swal) {
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2500,
+        timerProgressBar: true
+      });
+      Toast.fire({
+        icon: success ? 'success' : 'info',
+        title: success ? 'อัปเดตรายชื่อและข้อมูลรถเรียบร้อย' : 'ใช้ข้อมูลสำรองล่าสุดในระบบ'
+      });
+    }
+  } catch (e) {
+    console.error('Manual refresh error:', e);
+  } finally {
+    if (icon) icon.classList.remove('spin-animation');
+    if (btnEl) btnEl.disabled = false;
+  }
+}
+
+/**
+ * ตาข่ายสำรอง (Safety Net): ดึงรายชื่อผู้ขอ, พขร., และรถ จากประวัติการขอใช้รถ (globalData)
+ * ในกรณีที่เครื่องใหม่ยังไม่มีแคช และ getOptions เกิดความขัดข้องทางเน็ตเวิร์ก
+ */
+function fallbackHarvestFromData() {
+  if (!globalData || !globalData.length) return;
+
+  let needUpdate = false;
+
+  // 1. เก็บตกรายชื่อผู้ขอและกลุ่มงาน (คอลัมน์ 3 และ 4)
+  if (!userList || userList.length === 0) {
+    const userMap = new Map();
+    globalData.forEach(row => {
+      const name = String(row[2] || '').trim();
+      const group = String(row[3] || '').trim();
+      if (name && !userMap.has(name)) {
+        userMap.set(name, group);
+      }
+    });
+    if (userMap.size > 0) {
+      userList = Array.from(userMap.entries()).map(([name, group]) => ({ name, group }));
+      needUpdate = true;
+      console.log(`[Safety Net] ดึงรายชื่อผู้ขอ ${userList.length} คน จากประวัติสำเร็จ`);
+    }
+  }
+
+  // 2. เก็บตกรายชื่อพนักงานขับรถ (คอลัมน์ 13)
+  if (!driverList || driverList.length === 0) {
+    const driverSet = new Set();
+    globalData.forEach(row => {
+      const d = String(row[12] || '').trim();
+      if (d) driverSet.add(d);
+    });
+    if (driverSet.size > 0) {
+      driverList = Array.from(driverSet).sort();
+      needUpdate = true;
+      console.log(`[Safety Net] ดึงรายชื่อ พขร. ${driverList.length} คน จากประวัติสำเร็จ`);
+    }
+  }
+
+  // 3. เก็บตกข้อมูลรถและรุ่น (คอลัมน์ 14 และ 15)
+  if (!carList || carList.length === 0) {
+    const carMap = new Map();
+    globalData.forEach(row => {
+      const plate = String(row[13] || '').trim();
+      const model = String(row[14] || '').trim();
+      if (plate && !carMap.has(plate)) {
+        carMap.set(plate, model);
+      }
+    });
+    if (carMap.size > 0) {
+      carList = Array.from(carMap.entries()).map(([plate, model]) => ({ plate, model }));
+      needUpdate = true;
+      console.log(`[Safety Net] ดึงข้อมูลรถ ${carList.length} คัน จากประวัติสำเร็จ`);
+    }
+  }
+
+  if (needUpdate) {
+    populateUserSelect();
+    populateDriverSelects();
+    populateCarSelects();
+    try {
+      localStorage.setItem(CACHE_KEY_OPTIONS, JSON.stringify({
+        users: userList,
+        drivers: driverList,
+        cars: carList,
+        updatedAt: new Date().toISOString(),
+        source: 'harvested_from_history'
+      }));
+    } catch (e) {}
   }
 }
 
@@ -3450,20 +3655,35 @@ function populateUserSelect() {
   const el = document.getElementById('req_c');
   if (!el) return;
 
-  el.innerHTML = '<option value="" disabled selected>เลือกหรือค้นหาชื่อผู้ขอ...</option>';
+  const curVal = $(el).val() || el.value || '';
+
+  if (userList.length === 0) {
+    el.innerHTML = '<option value="" disabled selected>กำลังโหลดรายชื่อผู้ขอ...</option>';
+    return;
+  }
+
+  let html = '<option value="" disabled selected>เลือกหรือค้นหาชื่อผู้ขอ...</option>';
   userList.forEach(u => {
-    const opt = document.createElement('option');
-    opt.value = u.name;
-    opt.textContent = u.name;
-    el.appendChild(opt);
+    html += `<option value="${u.name}">${u.name}</option>`;
   });
+  el.innerHTML = html;
+
+  if (curVal) {
+    el.value = curVal;
+  }
 
   if (window.jQuery && $.fn.select2) {
-    $('#req_c').select2({
+    if ($(el).data('select2') || $(el).hasClass('select2-hidden-accessible')) {
+      try { $(el).select2('destroy'); } catch (e) {}
+    }
+    $(el).select2({
       theme: 'bootstrap-5',
       placeholder: 'พิมพ์ค้นหาชื่อผู้ขอ...',
       width: '100%'
     });
+    if (curVal) {
+      $(el).val(curVal).trigger('change.select2');
+    }
   }
 }
 
@@ -3472,17 +3692,27 @@ function populateDriverSelects() {
   const filterSel = document.getElementById('filterDriver');
 
   if (driverSel) {
-    driverSel.innerHTML = '<option value="" disabled selected>เลือกพนักงานขับรถ...</option>';
-    driverList.forEach(d => {
-      driverSel.innerHTML += `<option value="${d}">${d}</option>`;
-    });
+    const curVal = driverSel.value || '';
+    if (driverList.length === 0) {
+      driverSel.innerHTML = '<option value="" disabled selected>กำลังโหลดพนักงานขับรถ...</option>';
+    } else {
+      let html = '<option value="" disabled selected>เลือกพนักงานขับรถ...</option>';
+      driverList.forEach(d => {
+        html += `<option value="${d}">${d}</option>`;
+      });
+      driverSel.innerHTML = html;
+      if (curVal) driverSel.value = curVal;
+    }
   }
 
   if (filterSel) {
-    filterSel.innerHTML = '<option value="">-- กรองผู้ขับรถทั้งหมด --</option>';
+    const curFilter = filterSel.value || '';
+    let html = '<option value="">-- กรองผู้ขับรถทั้งหมด --</option>';
     driverList.forEach(d => {
-      filterSel.innerHTML += `<option value="${d}">${d}</option>`;
+      html += `<option value="${d}">${d}</option>`;
     });
+    filterSel.innerHTML = html;
+    if (curFilter) filterSel.value = curFilter;
   }
 }
 
@@ -3491,26 +3721,42 @@ function populateCarSelects() {
   const oilCarSelect = document.getElementById('oilCar');
 
   if (plateSelect) {
-    plateSelect.innerHTML = '<option value="" disabled selected>เลือกทะเบียนรถ</option>';
-    carList.forEach(c => {
-      plateSelect.innerHTML += `<option value="${c.plate}">${c.plate} - ${c.model || ''}</option>`;
-    });
+    const curVal = $(plateSelect).val() || plateSelect.value || '';
+    if (carList.length === 0) {
+      plateSelect.innerHTML = '<option value="" disabled selected>กำลังโหลดข้อมูลรถ...</option>';
+    } else {
+      let html = '<option value="" disabled selected>เลือกทะเบียนรถ</option>';
+      carList.forEach(c => {
+        html += `<option value="${c.plate}">${c.plate} - ${c.model || ''}</option>`;
+      });
+      plateSelect.innerHTML = html;
+      if (curVal) plateSelect.value = curVal;
+    }
 
     if (window.jQuery && $.fn.select2) {
-      $('#assign_n').select2({
+      if ($(plateSelect).data('select2') || $(plateSelect).hasClass('select2-hidden-accessible')) {
+        try { $(plateSelect).select2('destroy'); } catch (e) {}
+      }
+      $(plateSelect).select2({
         theme: 'bootstrap-5',
         dropdownParent: $('#modalAssign'),
         placeholder: 'เลือกทะเบียนรถ...',
         width: '100%'
       });
+      if (curVal) {
+        $(plateSelect).val(curVal).trigger('change.select2');
+      }
     }
   }
 
   if (oilCarSelect) {
-    oilCarSelect.innerHTML = '<option value="">-- เลือกทะเบียนรถ (ถ้ามี) --</option>';
+    const curOilVal = oilCarSelect.value || '';
+    let html = '<option value="">-- เลือกทะเบียนรถ (ถ้ามี) --</option>';
     carList.forEach(c => {
-      oilCarSelect.innerHTML += `<option value="${c.plate}">${c.plate} - ${c.model || ''}</option>`;
+      html += `<option value="${c.plate}">${c.plate} - ${c.model || ''}</option>`;
     });
+    oilCarSelect.innerHTML = html;
+    if (curOilVal) oilCarSelect.value = curOilVal;
   }
 }
 
@@ -3536,6 +3782,12 @@ async function loadData(silent = true) {
     if (json.status !== 'success') throw new Error(json.message);
 
     globalData = json.data || [];
+
+    // ตาข่ายสำรอง (Safety Net): หากรายชื่อหรือรถยังว่างเปล่า ให้ดึงจากประวัติการขอใช้รถทันที
+    if (!userList.length || !driverList.length || !carList.length) {
+      fallbackHarvestFromData();
+    }
+
     renderTables();
 
     // อัปเดตปฏิทิน
@@ -3701,11 +3953,34 @@ function filterCards(containerId, query) {
   });
 }
 
+function sortCardsLatestFirst(items) {
+  if (!items || !Array.isArray(items)) return [];
+  return items.slice().sort((a, b) => {
+    // 1. เปรียบเทียบ ID แบบตัวเลขธรรมชาติเรียงจากมากไปน้อย (คำขอล่าสุดอยู่บนสุด)
+    if (a.id && b.id && a.id !== b.id) {
+      const idCmp = String(b.id).localeCompare(String(a.id), undefined, { numeric: true, sensitivity: 'base' });
+      if (idCmp !== 0) return idCmp;
+    }
+    // 2. ถ้ามี Timestamp วันที่ส่งคำขอ ให้เปรียบเทียบเวลาเรียงจากใหม่ไปเก่า
+    if (a.rawTimestamp && b.rawTimestamp) {
+      const tA = new Date(a.rawTimestamp).getTime();
+      const tB = new Date(b.rawTimestamp).getTime();
+      if (!isNaN(tA) && !isNaN(tB) && tA !== tB) {
+        return tB - tA;
+      }
+    }
+    // 3. สำรอง: เรียงตามลำดับแถวในสเปรดชีตจากล่างขึ้นบน (แถวที่บันทึกล่าสุดจะอยู่ล่างสุด)
+    return (b.rowIndex !== undefined ? b.rowIndex : 0) - (a.rowIndex !== undefined ? a.rowIndex : 0);
+  });
+}
+
 function renderMobileAssignCards(items) {
   const container = document.getElementById('cardsAssign');
   if (!container) return;
 
-  if (!items || items.length === 0) {
+  const sortedItems = sortCardsLatestFirst(items);
+
+  if (!sortedItems || sortedItems.length === 0) {
     container.innerHTML = `
       <div class="empty-records-card">
         <i class="bi bi-inbox"></i>
@@ -3715,7 +3990,7 @@ function renderMobileAssignCards(items) {
     return;
   }
 
-  container.innerHTML = items.map(item => `
+  container.innerHTML = sortedItems.map(item => `
     <div class="mobile-record-card">
       <div class="card-top">
         <div class="d-flex align-items-center gap-2">
@@ -3779,7 +4054,7 @@ function renderMobileAssignCards(items) {
 }
 
 function renderMobileDriverCards(items) {
-  currentDriverCardsData = items || [];
+  currentDriverCardsData = sortCardsLatestFirst(items);
   applyDriverCardsFilter();
 }
 
@@ -3878,7 +4153,7 @@ function applyDriverCardsFilter() {
 }
 
 function renderMobileReportCards(items) {
-  currentReportCardsData = items || [];
+  currentReportCardsData = sortCardsLatestFirst(items);
   reportCardsLimit = 15;
   applyReportCardsFilter();
 }
@@ -3990,9 +4265,10 @@ function renderTables() {
   let driverCardsList = [];
   let reportCardsList = [];
 
-  globalData.forEach(row => {
+  globalData.forEach((row, rowIndex) => {
     if (!row || !row[0]) return;
     const id = row[0];
+    const rawTimestamp = row[1];
     const start = formatDateUI(row[4]);
     const end = formatDateUI(row[5]);
     const req = row[2] || '-';
@@ -4042,7 +4318,9 @@ function renderTables() {
         id, start, end, req, subj, place, cType,
         driver: driver || '',
         plate: plate || '',
-        status, badgeClass, isAssigned
+        status, badgeClass, isAssigned,
+        rowIndex,
+        rawTimestamp
       });
     }
 
@@ -4068,7 +4346,9 @@ function renderTables() {
         id, start, end, req, place, driver,
         plate: plate || '',
         diffKm: diffKm !== '' && diffKm !== null && diffKm !== undefined ? diffKm : '',
-        hasReported
+        hasReported,
+        rowIndex,
+        rawTimestamp
       });
     }
 
@@ -4096,12 +4376,14 @@ function renderTables() {
         driver: driver || '',
         plate: plate || '',
         diffKm: diffKm !== '' && diffKm !== null && diffKm !== undefined ? diffKm : '',
-        printCount, status, badgeClass
+        printCount, status, badgeClass,
+        rowIndex,
+        rawTimestamp
       });
     }
   });
 
-  // อัปเดตตาราง DataTables
+  // อัปเดตตาราง DataTables (เรียง ID จากมากไปน้อยเช่นกัน)
   updateDataTable('#tableAssign', assignData, [[1, 'desc']]);
 
   if (!$.fn.DataTable.isDataTable('#tableDriver')) {
@@ -4123,6 +4405,11 @@ function renderTables() {
   }
 
   updateDataTable('#tableReport', reportData, [[1, 'desc']]);
+
+  // จัดเรียงการ์ดคำขอล่าสุดให้อยู่บนสุดเสมอ (Latest First)
+  assignCardsList = sortCardsLatestFirst(assignCardsList);
+  driverCardsList = sortCardsLatestFirst(driverCardsList);
+  reportCardsList = sortCardsLatestFirst(reportCardsList);
 
   // อัปเดตการ์ดมุมมองมือถือ (Mobile Cards)
   renderMobileAssignCards(assignCardsList);
@@ -4292,6 +4579,13 @@ function updateTripDurationPreview() {
    ========================================================================== */
 
 function openAssign(id) {
+  // หากยังไม่มีข้อมูลรถหรือ พขร. ให้ลองดึงจากแคชหรือเก็บตกทันที
+  if (!carList.length || !driverList.length) {
+    if (!initCachedOptions()) {
+      fallbackHarvestFromData();
+    }
+  }
+
   $('#assign_id').val(id);
   $('#assign_id_lbl').text(id);
   $('#formAssign')[0].reset();
@@ -5008,8 +5302,16 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // Load Data
+  // 1. ดึงแคชขึ้นมาแสดงผลทันทีแบบไม่มีดีเลย์ (0ms)
+  initCachedOptions();
+
+  // 2. ซิงค์ Options จากระบบ
   loadOptions();
-  loadData(true);
+
+  // 3. หน่วงเวลา 200ms เพื่อไม่ให้ Request ชนกับ Google Apps Script พร้อมกัน
+  setTimeout(() => {
+    loadData(true);
+  }, 200);
 });
 
 /* ==========================================================================
