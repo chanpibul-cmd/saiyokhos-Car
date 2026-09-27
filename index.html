@@ -2572,7 +2572,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
 const CONFIG = {
   // URL Web App จาก Google Apps Script (อัปเดตใหม่ล่าสุด)
-  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzX1q54bEkVMhJeF4tDNMmzhfnnHMaWV-5O61Kc1_XwCZe_VqgiDDSrO-vBbDp5o4zchw/exec',
+  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzQ618jxgY9oGHj_1JBpXXh2y9gTM-VxJCzlML2-JhLz57K2q6quFJzUSMIRLeRMipTGg/exec',
 
   // ข้อมูลหน่วยงาน
   HOSPITAL_NAME: 'โรงพยาบาลไทรโยค',
@@ -4828,7 +4828,8 @@ function setupAssignForm() {
     updateSyncBadge('syncing', 'กำลังบันทึกการจัดรถ...');
 
     try {
-      const res = await callAPI('assignCar', { id, driver, plate, model });
+      // ส่ง skipCalendar: true เพื่อให้บันทึกเสร็จทันทีใน 1-1.5 วินาที (รวดเร็วเทียบเท่าบันทึกเลขไมล์)
+      const res = await callAPI('assignCar', { id, driver, plate, model, skipCalendar: true });
       // หากเซิร์ฟเวอร์ส่งคืนข้อมูลแถวที่อัปเดตแล้ว ให้ใช้ข้อมูลยืนยันจากเซิร์ฟเวอร์
       if (res && res.data && res.data.updatedRow && targetIdx !== -1) {
         globalData[targetIdx] = res.data.updatedRow;
@@ -4844,6 +4845,12 @@ function setupAssignForm() {
         timer: 1800,
         showConfirmButton: false
       });
+
+      // ซิงค์ Google Calendar ในเบื้องหลังแบบเงียบๆ ไม่ต้องหน่วงหน้าจอผู้ใช้
+      if (res && res.data && res.data.eventId) {
+        callAPI('syncCalendar', { id }).catch(e => console.warn('Background calendar sync error:', e));
+      }
+
       // ซิงค์ Background เงียบๆ
       loadData(true);
     } catch (err) {
