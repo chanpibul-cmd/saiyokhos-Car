@@ -364,12 +364,30 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   background: #ecfdf5;
   color: #065f46;
   border: 1px solid #a7f3d0;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sync-status-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+  filter: brightness(0.97);
+}
+
+.sync-status-badge:active {
+  transform: translateY(0);
 }
 
 [data-theme="dark"] .sync-status-badge {
   background: rgba(16, 185, 129, 0.15);
   color: #6ee7b7;
   border-color: rgba(16, 185, 129, 0.3);
+}
+
+[data-theme="dark"] .sync-status-badge:hover {
+  background: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
 }
 
 .sync-status-badge .dot {
@@ -1621,6 +1639,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                 <option value="refer ต่างจังหวัด">refer ต่างจังหวัด</option>
                 <option value="EMS">EMS</option>
                 <option value="ออกชันสูตร">ออกชันสูตร</option>
+                <option value="สอบสวนโรค/ควบคุมโรค">สอบสวนโรค/ควบคุมโรค</option>
                 <option value="อื่นๆ">อื่นๆ</option>
               </select>
 
@@ -1636,6 +1655,8 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                 <div class="usage-chip-btn" data-value="refer ต่างจังหวัด"><i class="bi bi-truck-flatbed text-orange"></i> refer ต่าง จ.</div>
                 <div class="usage-chip-btn" data-value="EMS"><i class="bi bi-shield-exclamation text-danger"></i> EMS</div>
                 <div class="usage-chip-btn" data-value="ออกชันสูตร"><i class="bi bi-journal-medical text-purple"></i> ออกชันสูตร</div>
+                <div class="usage-chip-btn" data-value="สอบสวนโรค/ควบคุมโรค"><i class="bi bi-virus text-danger"></i> สอบสวน/ควบคุมโรค</div>
+                <div class="usage-chip-btn" data-value="อื่นๆ"><i class="bi bi-three-dots text-secondary"></i> อื่นๆ</div>
               </div>
             </div>
 
@@ -2550,8 +2571,8 @@ h1, h2, h3, h4, h5, h6, .font-heading {
  */
 
 const CONFIG = {
-  // URL Web App จาก Google Apps Script (อัปเดตใหม่)
-  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzrOhsJtC19mNJh39n_jiL7rl8uxHi-CPEzk-JUnkbmeGeG6ivT4VdR4qarmV_jicZaDA/exec',
+  // URL Web App จาก Google Apps Script (อัปเดตใหม่ล่าสุด)
+  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzX1q54bEkVMhJeF4tDNMmzhfnnHMaWV-5O61Kc1_XwCZe_VqgiDDSrO-vBbDp5o4zchw/exec',
 
   // ข้อมูลหน่วยงาน
   HOSPITAL_NAME: 'โรงพยาบาลไทรโยค',
@@ -2569,7 +2590,7 @@ const CONFIG = {
     oil: '11278'
   },
 
-  // ประเภทการใช้รถ (11 ประเภทตามระบบเดิม)
+  // ประเภทการใช้รถ
   CAR_USAGE_TYPES: [
     { id: 'meet_in', label: 'ประชุม/อบรม/ในจังหวัด', icon: 'bi-people', color: 'primary' },
     { id: 'meet_out', label: 'ประชุม/อบรม/ต่างจังหวัด', icon: 'bi-briefcase', color: 'indigo' },
@@ -2581,6 +2602,7 @@ const CONFIG = {
     { id: 'refer_out', label: 'refer ต่างจังหวัด', icon: 'bi-truck-flatbed', color: 'orange' },
     { id: 'ems', label: 'EMS', icon: 'bi-shield-exclamation', color: 'danger' },
     { id: 'autopsy', label: 'ออกชันสูตร', icon: 'bi-journal-medical', color: 'purple' },
+    { id: 'disease_control', label: 'สอบสวนโรค/ควบคุมโรค', icon: 'bi-virus', color: 'danger' },
     { id: 'other', label: 'อื่นๆ', icon: 'bi-three-dots', color: 'secondary' }
   ],
 
@@ -3390,7 +3412,7 @@ let modalOilRep = null;
    1. API Communication
    ========================================================================== */
 
-async function fetchAPI(action, payload = null, timeoutMs = 25000) {
+async function fetchAPI(action, payload = null, timeoutMs = 40000) {
   const url = window.CONFIG?.WEB_APP_URL || '';
   const bodyObj = payload !== null ? { action, payload } : { action };
 
@@ -3458,7 +3480,89 @@ async function callAPI(action, payload) {
    2. Options & Master Data (Smart Cache & Resilience)
    ========================================================================== */
 
-const CACHE_KEY_OPTIONS = 'car2_master_options';
+const CACHE_KEY_OPTIONS = 'car3_master_options';
+const CACHE_KEY_DATA = 'car3_global_data_cache';
+
+/**
+ * ฟังก์ชันช่วยแปลง Date ที่ปลอดภัย รองรับทั้ง ISO String, วันที่ไทย dd/mm/yyyy พ.ศ./ค.ศ.
+ */
+function parseSafeDate(val) {
+  if (!val) return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  const s = String(val).trim();
+
+  // ดักจับรูปแบบ dd/mm/yyyy หรือ dd/mm/yyyy hh:mm:ss
+  const thaiMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(.*)$/);
+  if (thaiMatch) {
+    const d = parseInt(thaiMatch[1], 10);
+    const m = parseInt(thaiMatch[2], 10) - 1;
+    let y = parseInt(thaiMatch[3], 10);
+    if (y > 2500) y -= 543;
+    const timeParts = (thaiMatch[4] || '').trim().split(':');
+    const hh = parseInt(timeParts[0], 10) || 0;
+    const mm = parseInt(timeParts[1], 10) || 0;
+    const ss = parseInt(timeParts[2], 10) || 0;
+    return new Date(y, m, d, hh, mm, ss);
+  }
+
+  // ดักจับรูปแบบ yyyy-mm-dd ที่ปีเป็น พ.ศ.
+  const yMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if (yMatch) {
+    let y = parseInt(yMatch[1], 10);
+    if (y > 2500) y -= 543;
+    const timeParts = (yMatch[4] || '').trim().replace(/^T/, '').split(':');
+    const hh = parseInt(timeParts[0], 10) || 0;
+    const mm = parseInt(timeParts[1], 10) || 0;
+    const ss = parseInt(timeParts[2], 10) || 0;
+    return new Date(y, parseInt(yMatch[2], 10) - 1, parseInt(yMatch[3], 10), hh, mm, ss);
+  }
+
+  const parsed = new Date(s);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
+ * ดึงข้อมูลตารางและคิวรถจาก localStorage ทันทีที่เปิดหน้าเว็บ (0ms)
+ * ทำให้หน้าเว็บพร้อมใช้งานทันที ไม่ต้องรอดาวน์โหลด 650KB จาก Google Apps Script
+ */
+function initCachedData() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_DATA);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        globalData = parsed;
+        renderTables();
+        updateBadgeCounters();
+        if (typeof renderCalendar === 'function' && document.getElementById('page-calendar')?.classList.contains('active')) {
+          renderCalendar();
+        }
+        if (carDashboard) {
+          carDashboard.setData(globalData);
+        }
+        updateSyncBadge('online', 'ออนไลน์ (พร้อมใช้จากแคช)');
+        console.log(`[Cache] โหลดประวัติการใช้รถจากเครื่องทันที: ${globalData.length} รายการ (0ms)`);
+        return true;
+      }
+    }
+  } catch (e) {
+    console.warn('[Cache] initCachedData error:', e);
+  }
+  return false;
+}
+
+/**
+ * บันทึกข้อมูลคิวรถลง localStorage เพื่อความรวดเร็วและพร้อมใช้งานแบบออฟไลน์
+ */
+function saveLocalDataCache(data) {
+  try {
+    if (Array.isArray(data) && data.length > 0) {
+      localStorage.setItem(CACHE_KEY_DATA, JSON.stringify(data));
+    }
+  } catch (e) {
+    console.warn('[Cache] saveLocalDataCache error:', e);
+  }
+}
 
 /**
  * ดึงข้อมูล Master Data จาก localStorage ทันทีที่เปิดหน้าเว็บ (0ms)
@@ -3764,14 +3868,20 @@ function populateCarSelects() {
    3. Main Data Loading & Syncing
    ========================================================================== */
 
-async function loadData(silent = true) {
-  if (isFetchingData) return;
+let hasPendingDataRefresh = false;
+
+async function loadData(silent = true, forceRefresh = false) {
+  if (isFetchingData) {
+    hasPendingDataRefresh = true;
+    return;
+  }
   isFetchingData = true;
 
-  updateSyncBadge('syncing', 'กำลังอัปเดตข้อมูล...');
+  updateSyncBadge('syncing', forceRefresh ? 'กำลังรีเฟรชฐานข้อมูล...' : 'กำลังอัปเดตข้อมูล...');
   if (!silent) {
     Swal.fire({
-      title: 'กำลังดึงข้อมูลล่าสุด...',
+      title: forceRefresh ? 'กำลังรีเฟรชข้อมูลจากฐานข้อมูล...' : 'กำลังดึงข้อมูลล่าสุด...',
+      html: '<div class="text-muted small">เชื่อมต่อ Google Apps Script (กำลังตรวจสอบข้อมูลล่าสุด)</div>',
       allowOutsideClick: false,
       didOpen: () => Swal.showLoading()
     });
@@ -3781,17 +3891,17 @@ async function loadData(silent = true) {
     let json = null;
     let lastErr = null;
 
-    // ลองดึงข้อมูลหลัก (Auto-retry สูงสุด 2 ครั้ง)
+    // ลองดึงข้อมูลหลัก (Timeout 40s)
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        json = await fetchAPI('getData', null, 30000);
+        json = await fetchAPI('getData', forceRefresh ? { forceRefresh: true } : null, 40000);
         if (json && json.status === 'success') break;
         throw new Error(json?.message || 'สถานะไม่สำเร็จ');
       } catch (e) {
         lastErr = e;
         if (attempt < 2) {
-          console.warn(`[LoadData] รอบที่ ${attempt} ไม่สำเร็จ กำลังลองใหม่ใน 1.5 วินาที...`, e);
-          await new Promise(r => setTimeout(r, 1500));
+          console.warn(`[LoadData] รอบที่ ${attempt} ไม่สำเร็จ กำลังลองใหม่ใน 1.2 วินาที...`, e);
+          await new Promise(r => setTimeout(r, 1200));
         }
       }
     }
@@ -3801,6 +3911,7 @@ async function loadData(silent = true) {
     }
 
     globalData = json.data || [];
+    saveLocalDataCache(globalData);
 
     // ตาข่ายสำรอง (Safety Net): หากรายชื่อหรือรถยังว่างเปล่า ให้ดึงจากประวัติการขอใช้รถทันที
     if (!userList.length || !driverList.length || !carList.length) {
@@ -3822,6 +3933,16 @@ async function loadData(silent = true) {
     updateBadgeCounters();
     updateSyncBadge('online', 'ออนไลน์ (ซิงค์แล้ว)');
 
+    if (!silent) {
+      Swal.fire({
+        icon: 'success',
+        title: 'ซิงค์ข้อมูลสำเร็จ',
+        text: `อัปเดตข้อมูลล่าสุด ${globalData.length.toLocaleString()} รายการแล้ว`,
+        timer: 1500,
+        showConfirmButton: false
+      });
+    }
+
     // หลังจากโหลดข้อมูลหลักสำเร็จและระบบออนไลน์แล้ว ให้ลองซิงค์ Options ใน Background อย่างเงียบๆ
     setTimeout(() => {
       loadOptions(false, 1).catch(err => console.warn('[Background Options] Sync notice:', err));
@@ -3834,7 +3955,10 @@ async function loadData(silent = true) {
     }
   } finally {
     isFetchingData = false;
-    if (!silent) Swal.close();
+    if (hasPendingDataRefresh) {
+      hasPendingDataRefresh = false;
+      setTimeout(() => loadData(true), 250);
+    }
   }
 }
 
@@ -3842,21 +3966,34 @@ function updateSyncBadge(status, text) {
   const badge = document.getElementById('syncStatusBadge');
   if (!badge) return;
 
+  badge.title = 'คลิกเพื่อรีเฟรชและซิงค์ข้อมูลล่าสุดกับ Google Sheets';
+  badge.style.cursor = 'pointer';
+
+  if (!badge._hasClickListener) {
+    badge._hasClickListener = true;
+    badge.addEventListener('click', () => {
+      loadData(false, true);
+    });
+  }
+
   if (status === 'online') {
     badge.className = 'sync-status-badge';
-    badge.innerHTML = '<span class="dot" style="background-color:#10b981;"></span> ' + text;
+    badge.style.borderColor = '#10b981';
+    badge.style.background = '#ecfdf5';
+    badge.style.color = '#065f46';
+    badge.innerHTML = '<span class="dot" style="background-color:#10b981;"></span> ' + text + ' <i class="bi bi-arrow-repeat ms-1" style="font-size:0.8rem;opacity:0.75" title="กดเพื่อซิงค์"></i>';
   } else if (status === 'syncing') {
     badge.className = 'sync-status-badge';
     badge.style.borderColor = '#93c5fd';
     badge.style.background = '#eff6ff';
     badge.style.color = '#1e40af';
-    badge.innerHTML = '<span class="dot" style="background-color:#3b82f6;"></span> ' + text;
+    badge.innerHTML = '<span class="dot" style="background-color:#3b82f6;"></span> ' + text + ' <span class="spinner-border spinner-border-sm ms-1" style="width:0.7rem;height:0.7rem;border-width:1.5px;"></span>';
   } else {
     badge.className = 'sync-status-badge';
     badge.style.borderColor = '#fca5a5';
     badge.style.background = '#fef2f2';
     badge.style.color = '#991b1b';
-    badge.innerHTML = '<span class="dot" style="background-color:#ef4444;"></span> ' + text;
+    badge.innerHTML = '<span class="dot" style="background-color:#ef4444;"></span> ' + text + ' <i class="bi bi-arrow-clockwise ms-1" style="font-size:0.8rem" title="กดเพื่อลองใหม่"></i>';
   }
 }
 
@@ -3898,8 +4035,8 @@ function updateBadgeCounters() {
 
 function formatDateUI(dStr) {
   if (!dStr) return '-';
-  const d = new Date(dStr);
-  if (isNaN(d)) return dStr;
+  const d = parseSafeDate(dStr);
+  if (!d) return dStr;
   return d.toLocaleString('th-TH', {
     year: 'numeric',
     month: 'short',
@@ -4537,6 +4674,21 @@ function setupRequestForm() {
 
     try {
       const res = await callAPI('requestCar', payload);
+      if (res && res.data) {
+        const newId = res.data.id;
+        const newRow = res.data.rowData || [
+          newId, new Date().toISOString(), payload.requester, payload.group,
+          payload.start, payload.end, payload.subject, payload.place,
+          payload.qty, payload.include, payload.detail, payload.carType,
+          '', '', '', '', '', '', '', '', '', '', res.data.eventId || '', 0
+        ];
+        globalData.push(newRow);
+        saveLocalDataCache(globalData);
+        renderTables();
+        updateBadgeCounters();
+        if (carDashboard) carDashboard.setData(globalData);
+      }
+
       Swal.fire({
         icon: 'success',
         title: 'บันทึกคำขอใช้รถเรียบร้อย',
@@ -4646,15 +4798,64 @@ function setupAssignForm() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const id = $('#assign_id').val();
-    const driver = $('#assign_m').val();
-    const plate = $('#assign_n').val();
-    const model = $('#assign_o').val();
+    const id = ($('#assign_id').val() || '').trim();
+    const driver = ($('#assign_m').val() || '').trim();
+    const plate = ($('#assign_n').val() || '').trim();
+    const model = ($('#assign_o').val() || '').trim();
 
-    await callAPI('assignCar', { id, driver, plate, model });
-    Swal.fire('สำเร็จ', 'บันทึกการจัดรถเรียบร้อย', 'success');
+    if (!driver) {
+      return Swal.fire('แจ้งเตือน', 'กรุณาเลือกพนักงานขับรถ (พขร.)', 'warning');
+    }
+    if (!plate) {
+      return Swal.fire('แจ้งเตือน', 'กรุณาเลือกรถยนต์ที่จะจัดให้', 'warning');
+    }
+
+    // 1. Optimistic Update ทันทีใน Client (0ms) - ผู้ใช้เห็นสถานะเปลี่ยนทันที ไม่ต้องรอเน็ต
+    const targetIdx = globalData.findIndex(r => String(r[0]).trim() === id);
+    let previousRow = null;
+    if (targetIdx !== -1) {
+      previousRow = [...globalData[targetIdx]];
+      globalData[targetIdx][12] = driver;
+      globalData[targetIdx][13] = plate;
+      globalData[targetIdx][14] = model;
+      saveLocalDataCache(globalData);
+      renderTables();
+      updateBadgeCounters();
+      if (carDashboard) carDashboard.setData(globalData);
+    }
+
     modalAssign.hide();
-    loadData(true);
+    updateSyncBadge('syncing', 'กำลังบันทึกการจัดรถ...');
+
+    try {
+      const res = await callAPI('assignCar', { id, driver, plate, model });
+      // หากเซิร์ฟเวอร์ส่งคืนข้อมูลแถวที่อัปเดตแล้ว ให้ใช้ข้อมูลยืนยันจากเซิร์ฟเวอร์
+      if (res && res.data && res.data.updatedRow && targetIdx !== -1) {
+        globalData[targetIdx] = res.data.updatedRow;
+        saveLocalDataCache(globalData);
+        renderTables();
+        updateBadgeCounters();
+      }
+      updateSyncBadge('online', 'ออนไลน์ (ซิงค์แล้ว)');
+      Swal.fire({
+        icon: 'success',
+        title: 'จัดรถสำเร็จ',
+        html: `มอบหมายให้ <b>${driver}</b> เรียบร้อยแล้ว`,
+        timer: 1800,
+        showConfirmButton: false
+      });
+      // ซิงค์ Background เงียบๆ
+      loadData(true);
+    } catch (err) {
+      // Rollback หากผิดพลาด
+      if (previousRow && targetIdx !== -1) {
+        globalData[targetIdx] = previousRow;
+        saveLocalDataCache(globalData);
+        renderTables();
+        updateBadgeCounters();
+      }
+      updateSyncBadge('offline', 'เกิดข้อผิดพลาดในการบันทึก');
+    }
   });
 }
 
@@ -4664,10 +4865,10 @@ function setupAssignForm() {
 
 function toDateTimeLocal(isoStr) {
   if (!isoStr) return '';
-  const d = new Date(isoStr);
-  if (isNaN(d)) return '';
-  const tzoffset = (new Date()).getTimezoneOffset() * 60000;
-  return (new Date(d - tzoffset)).toISOString().slice(0, 16);
+  const d = parseSafeDate(isoStr);
+  if (!d) return '';
+  const tzoffset = d.getTimezoneOffset() * 60000;
+  return (new Date(d.getTime() - tzoffset)).toISOString().slice(0, 16);
 }
 
 function openDriver(id) {
@@ -4736,6 +4937,7 @@ function setupDriverForm() {
     if (row) {
       if (row[4]) $('#driver_p').val(toDateTimeLocal(row[4]));
       if (row[5]) $('#driver_q').val(toDateTimeLocal(row[5]));
+      calcKM();
     }
   });
 
@@ -4745,9 +4947,16 @@ function setupDriverForm() {
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const actSt = new Date($('#driver_p').val());
-    const actEn = new Date($('#driver_q').val());
-    const diffKm = parseFloat($('#driver_t').val());
+    const id = ($('#driver_id').val() || '').trim();
+    const pVal = $('#driver_p').val();
+    const qVal = $('#driver_q').val();
+    const actSt = new Date(pVal);
+    const actEn = new Date(qVal);
+    const diffKm = parseFloat($('#driver_t').val()) || 0;
+
+    if (!pVal || !qVal || isNaN(actSt.getTime()) || isNaN(actEn.getTime())) {
+      return Swal.fire('ข้อผิดพลาด', 'กรุณาระบุเวลา "ขับจริง" และ "ขับถึงจริง"', 'warning');
+    }
 
     if (actEn - actSt < 1800000) {
       return Swal.fire('ข้อผิดพลาด', 'เวลา "ขับถึงจริง" ต้องมากกว่า "ขับจริง" อย่างน้อย 30 นาที', 'error');
@@ -4758,9 +4967,9 @@ function setupDriverForm() {
     }
 
     const payload = {
-      id: $('#driver_id').val(),
-      actStart: $('#driver_p').val(),
-      actEnd: $('#driver_q').val(),
+      id: id,
+      actStart: pVal,
+      actEnd: qVal,
       startKm: $('#driver_r').val(),
       endKm: $('#driver_s').val(),
       diffKm: diffKm,
@@ -4768,10 +4977,53 @@ function setupDriverForm() {
       cost: $('#driver_v').val()
     };
 
-    await callAPI('driverReport', payload);
-    Swal.fire('สำเร็จ', 'บันทึกรายงานการขับรถเรียบร้อย', 'success');
+    // 1. Optimistic Update ทันทีใน Client (0ms) - เห็นผลต่างเลขไมล์และการจบงานทันที
+    const targetIdx = globalData.findIndex(r => String(r[0]).trim() === id);
+    let previousRow = null;
+    if (targetIdx !== -1) {
+      previousRow = [...globalData[targetIdx]];
+      globalData[targetIdx][15] = payload.actStart;
+      globalData[targetIdx][16] = payload.actEnd;
+      globalData[targetIdx][17] = payload.startKm;
+      globalData[targetIdx][18] = payload.endKm;
+      globalData[targetIdx][19] = payload.diffKm;
+      globalData[targetIdx][20] = payload.fuel;
+      globalData[targetIdx][21] = payload.cost;
+      saveLocalDataCache(globalData);
+      renderTables();
+      updateBadgeCounters();
+      if (carDashboard) carDashboard.setData(globalData);
+    }
+
     modalDriver.hide();
-    loadData(true);
+    updateSyncBadge('syncing', 'กำลังบันทึกรายงานไมล์...');
+
+    try {
+      const res = await callAPI('driverReport', payload);
+      if (res && res.data && res.data.updatedRow && targetIdx !== -1) {
+        globalData[targetIdx] = res.data.updatedRow;
+        saveLocalDataCache(globalData);
+        renderTables();
+        updateBadgeCounters();
+      }
+      updateSyncBadge('online', 'ออนไลน์ (ซิงค์แล้ว)');
+      Swal.fire({
+        icon: 'success',
+        title: 'บันทึกเรียบร้อย',
+        html: `บันทึกระยะทาง <b>${diffKm.toLocaleString()} กม.</b> เรียบร้อยแล้ว`,
+        timer: 1800,
+        showConfirmButton: false
+      });
+      loadData(true);
+    } catch (err) {
+      if (previousRow && targetIdx !== -1) {
+        globalData[targetIdx] = previousRow;
+        saveLocalDataCache(globalData);
+        renderTables();
+        updateBadgeCounters();
+      }
+      updateSyncBadge('offline', 'เกิดข้อผิดพลาดในการบันทึก');
+    }
   });
 }
 
@@ -5329,7 +5581,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // 1. ดึงแคชตัวเลือกขึ้นมาแสดงผลทันที (0ms)
   initCachedOptions();
 
-  // 2. โหลดข้อมูลหลักของระบบทันที (Data, Tables, Calendar, Dashboard, Online Badge)
+  // 2. ดึงแคชประวัติและคิวรถขึ้นมาแสดงผลทันที (0ms)
+  initCachedData();
+
+  // 3. โหลดข้อมูลหลักล่าสุดจากเซิร์ฟเวอร์ทันที
   loadData(true);
 });
 
@@ -5384,6 +5639,8 @@ window.filterCards = filterCards;
 window.applyDriverCardsFilter = applyDriverCardsFilter;
 window.applyReportCardsFilter = applyReportCardsFilter;
 window.loadMoreReportCards = loadMoreReportCards;
+window.loadData = loadData;
+window.initCachedData = initCachedData;
 
 
 </script>
