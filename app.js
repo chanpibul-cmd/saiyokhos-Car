@@ -119,7 +119,7 @@ function parseSafeDate(val) {
   if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
   const s = String(val).trim();
 
-  // ดักจับรูปแบบ dd/mm/yyyy หรือ dd/mm/yyyy hh:mm:ss
+  // 1. ดักจับรูปแบบ dd/mm/yyyy หรือ dd/mm/yyyy hh:mm:ss (เช่นใน Google Sheet)
   const thaiMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(.*)$/);
   if (thaiMatch) {
     const d = parseInt(thaiMatch[1], 10);
@@ -133,18 +133,21 @@ function parseSafeDate(val) {
     return new Date(y, m, d, hh, mm, ss);
   }
 
-  // ดักจับรูปแบบ yyyy-mm-dd ที่ปีเป็น พ.ศ.
-  const yMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
-  if (yMatch) {
-    let y = parseInt(yMatch[1], 10);
-    if (y > 2500) y -= 543;
-    const timeParts = (yMatch[4] || '').trim().replace(/^T/, '').split(':');
+  // 2. ดักจับรูปแบบ yyyy-mm-dd ที่ปีเป็น พ.ศ. (> 2500)
+  const beMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if (beMatch && parseInt(beMatch[1], 10) > 2500) {
+    const y = parseInt(beMatch[1], 10) - 543;
+    const m = parseInt(beMatch[2], 10) - 1;
+    const d = parseInt(beMatch[3], 10);
+    const timeParts = (beMatch[4] || '').trim().replace(/^T/, '').split(':');
     const hh = parseInt(timeParts[0], 10) || 0;
     const mm = parseInt(timeParts[1], 10) || 0;
     const ss = parseInt(timeParts[2], 10) || 0;
-    return new Date(y, parseInt(yMatch[2], 10) - 1, parseInt(yMatch[3], 10), hh, mm, ss);
+    return new Date(y, m, d, hh, mm, ss);
   }
 
+  // 3. รูปแบบ ISO มาตรฐาน เช่น 2026-09-29T04:00:00.000Z หรือ 2026-09-29T11:00
+  // ใช้ Date parser มาตรฐานของเบราว์เซอร์ ซึ่งจะคำนวณ Timezone ท้องถิ่น (UTC+7 สำหรับไทย) ให้อัตโนมัติและถูกต้อง
   const parsed = new Date(s);
   return isNaN(parsed.getTime()) ? null : parsed;
 }
@@ -682,17 +685,39 @@ function updateBadgeCounters() {
    4. Table Rendering & DataTables
    ========================================================================== */
 
+const DATATABLES_THAI_LANG = {
+  emptyTable: "ไม่มีข้อมูลในตาราง",
+  info: "แสดง _START_ ถึง _END_ จากทั้งหมด _TOTAL_ รายการ",
+  infoEmpty: "แสดง 0 ถึง 0 จาก 0 รายการ",
+  infoFiltered: "(กรองจากทั้งหมด _MAX_ รายการ)",
+  lengthMenu: "แสดง _MENU_ รายการ",
+  loadingRecords: "กำลังโหลด...",
+  processing: "กำลังประมวลผล...",
+  search: "ค้นหา:",
+  zeroRecords: "ไม่พบข้อมูลที่ค้นหา",
+  paginate: {
+    first: "หน้าแรก",
+    last: "หน้าสุดท้าย",
+    next: "ถัดไป",
+    previous: "ก่อนหน้า"
+  }
+};
+
 function formatDateUI(dStr) {
   if (!dStr) return '-';
   const d = parseSafeDate(dStr);
   if (!d) return dStr;
-  return d.toLocaleString('th-TH', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = d.getFullYear();
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+
+  // แสดงผลแบบใน Google Sheet: dd/mm/yyyy hh:mm:ss เช่น 29/09/2026 11:00:00
+  return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
 }
 
 /* ==========================================================================
@@ -1201,7 +1226,7 @@ function renderTables() {
       data: driverData,
       responsive: true,
       autoWidth: false,
-      language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json' },
+      language: DATATABLES_THAI_LANG,
       order: [[1, 'desc']],
       stateSave: true
     });
@@ -1241,7 +1266,7 @@ function updateDataTable(selector, dataset, order) {
       data: dataset,
       responsive: true,
       autoWidth: false,
-      language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json' },
+      language: DATATABLES_THAI_LANG,
       order: order,
       stateSave: true
     });
@@ -2058,6 +2083,18 @@ function switchPage(pageId, linkElement = null) {
     }
   } else if (pageId === 'page-oil') {
     if (oilHistoryList.length === 0) loadOilData(false);
+  } else if (pageId === 'page-admin') {
+    if (!globalData || globalData.length === 0) {
+      loadData(true);
+    } else {
+      renderAdminTable();
+      updateAdminCounters();
+    }
+    setTimeout(() => {
+      if ($.fn.DataTable && $.fn.DataTable.isDataTable('#tableAdmin')) {
+        $('#tableAdmin').DataTable().columns.adjust().responsive.recalc();
+      }
+    }, 50);
   }
 
   // ปรับขนาดและคำนวณ Responsive DataTables เมื่อสลับหน้า
@@ -2123,6 +2160,8 @@ async function checkLoginAndSwitch(pageId, linkElement = null) {
         return Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง', 'error');
       }
     }
+  }
+
   if (pageId === 'page-admin' && !unlockedAdmin) {
     const { value: pass } = await Swal.fire({
       title: '🛡️ จัดการข้อมูล (Admin Mode)',
@@ -2395,7 +2434,21 @@ function renderAdminTable() {
     ]);
   });
 
-  updateDataTable('#tableAdmin', adminData, [[1, 'desc']]);
+  if ($.fn.DataTable.isDataTable('#tableAdmin')) {
+    const dt = $('#tableAdmin').DataTable();
+    dt.clear().rows.add(adminData).draw(false);
+    setTimeout(() => dt.columns.adjust().responsive.recalc(), 10);
+  } else {
+    $('#tableAdmin').DataTable({
+      data: adminData,
+      responsive: true,
+      autoWidth: false,
+      language: DATATABLES_THAI_LANG,
+      order: [[1, 'desc']],
+      stateSave: false,
+      pageLength: 25
+    });
+  }
 }
 
 function updateAdminCounters() {
