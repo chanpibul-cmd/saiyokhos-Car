@@ -1413,10 +1413,33 @@ h1, h2, h3, h4, h5, h6, .font-heading {
     transform: rotate(360deg);
   }
 }
-
 .spin-animation {
   display: inline-block;
   animation: spin 0.8s linear infinite;
+}
+
+/* ==========================================================================
+   Admin Management Tabs & Master Tables
+   ========================================================================== */
+#adminTabs .nav-link {
+  color: var(--text-muted);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+#adminTabs .nav-link:hover {
+  color: var(--primary);
+  background-color: var(--primary-light);
+  border-color: var(--primary-border);
+}
+
+#adminTabs .nav-link.active {
+  color: #ffffff;
+  background-color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
 }
 
 
@@ -2104,10 +2127,10 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
       <!-- ================= 8. หน้าจัดการข้อมูล (Admin Management) ================= -->
       <section id="page-admin" class="page-section">
-        <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
           <div>
             <h2 class="page-header-title text-danger"><i class="bi bi-shield-lock-fill"></i> จัดการฐานข้อมูลส่วนกลาง (Admin)</h2>
-            <p class="page-header-subtitle">เข้าถึงข้อมูลทั้งหมด เพิ่ม ลบ แก้ไขรายการ และซิงค์ข้อมูลระหว่าง D1 กับ Google Sheets</p>
+            <p class="page-header-subtitle">เข้าถึงข้อมูลทั้งหมด เพิ่ม ลบ แก้ไขคำขอ รายชื่อเจ้าหน้าที่ แผนก/กลุ่มงาน รถยนต์ และ พขร.</p>
           </div>
           <div class="d-flex align-items-center gap-2 flex-wrap">
             <button class="btn btn-primary rounded-pill px-3 shadow-sm font-heading" onclick="switchPage('page-request')">
@@ -2122,64 +2145,217 @@ h1, h2, h3, h4, h5, h6, .font-heading {
           </div>
         </div>
 
-        <!-- 4 KPI Cards for Admin -->
-        <div class="row g-3 mb-4">
-          <div class="col-6 col-md-3">
-            <div class="card p-3 border-0 rounded-4 shadow-sm bg-primary-subtle text-primary">
-              <span class="small text-muted fw-semibold">คำขอทั้งหมด</span>
-              <h3 class="m-0 mt-1 font-heading fw-bold" id="adminTotalCount">0</h3>
-            </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="card p-3 border-0 rounded-4 shadow-sm bg-danger-subtle text-danger">
-              <span class="small text-muted fw-semibold">รอจัดรถ</span>
-              <h3 class="m-0 mt-1 font-heading fw-bold" id="adminPendingCount">0</h3>
-            </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="card p-3 border-0 rounded-4 shadow-sm bg-warning-subtle text-warning-emphasis">
-              <span class="small text-muted fw-semibold">รอขับรถ / กำลังไป</span>
-              <h3 class="m-0 mt-1 font-heading fw-bold" id="adminAssignedCount">0</h3>
-            </div>
-          </div>
-          <div class="col-6 col-md-3">
-            <div class="card p-3 border-0 rounded-4 shadow-sm bg-success-subtle text-success">
-              <span class="small text-muted fw-semibold">เสร็จสิ้น</span>
-              <h3 class="m-0 mt-1 font-heading fw-bold" id="adminCompletedCount">0</h3>
-            </div>
-          </div>
-        </div>
+        <!-- Admin Navigation Tabs -->
+        <ul class="nav nav-pills mb-4 gap-2 flex-wrap" id="adminTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active rounded-pill px-4 font-heading" id="tab-btn-requests" data-bs-toggle="pill" data-bs-target="#tab-admin-requests" type="button" role="tab">
+              <i class="bi bi-card-checklist me-1"></i> รายการคำขอใช้รถ
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 font-heading" id="tab-btn-users" data-bs-toggle="pill" data-bs-target="#tab-admin-users" type="button" role="tab">
+              <i class="bi bi-people-fill me-1"></i> รายชื่อเจ้าหน้าที่และกลุ่มงาน
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 font-heading" id="tab-btn-cars" data-bs-toggle="pill" data-bs-target="#tab-admin-cars" type="button" role="tab">
+              <i class="bi bi-car-front-fill me-1"></i> ยานพาหนะ / รถยนต์
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link rounded-pill px-4 font-heading" id="tab-btn-drivers" data-bs-toggle="pill" data-bs-target="#tab-admin-drivers" type="button" role="tab">
+              <i class="bi bi-person-badge-fill me-1"></i> พนักงานขับรถ (พขร.)
+            </button>
+          </li>
+        </ul>
 
-        <!-- Admin Table Card -->
-        <div class="app-card">
-          <div class="card-header-clean flex-wrap gap-2">
-            <h3><i class="bi bi-table me-2 text-danger"></i>ตารางข้อมูลคำขอทั้งหมด (แก้ไข / ลบ ข้อมูล)</h3>
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
-                <i class="bi bi-database-check me-1"></i> Cloudflare D1 + Google Sheets Dual-Sync
-              </span>
+        <div class="tab-content" id="adminTabsContent">
+          <!-- 1. Tab รายการคำขอใช้รถ -->
+          <div class="tab-pane fade show active" id="tab-admin-requests" role="tabpanel">
+            <!-- 4 KPI Cards for Admin -->
+            <div class="row g-3 mb-4">
+              <div class="col-6 col-md-3">
+                <div class="card p-3 border-0 rounded-4 shadow-sm bg-primary-subtle text-primary">
+                  <span class="small text-muted fw-semibold">คำขอทั้งหมด</span>
+                  <h3 class="m-0 mt-1 font-heading fw-bold" id="adminTotalCount">0</h3>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="card p-3 border-0 rounded-4 shadow-sm bg-danger-subtle text-danger">
+                  <span class="small text-muted fw-semibold">รอจัดรถ</span>
+                  <h3 class="m-0 mt-1 font-heading fw-bold" id="adminPendingCount">0</h3>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="card p-3 border-0 rounded-4 shadow-sm bg-warning-subtle text-warning-emphasis">
+                  <span class="small text-muted fw-semibold">รอขับรถ / กำลังไป</span>
+                  <h3 class="m-0 mt-1 font-heading fw-bold" id="adminAssignedCount">0</h3>
+                </div>
+              </div>
+              <div class="col-6 col-md-3">
+                <div class="card p-3 border-0 rounded-4 shadow-sm bg-success-subtle text-success">
+                  <span class="small text-muted fw-semibold">เสร็จสิ้น</span>
+                  <h3 class="m-0 mt-1 font-heading fw-bold" id="adminCompletedCount">0</h3>
+                </div>
+              </div>
+            </div>
+
+            <!-- Admin Table Card -->
+            <div class="app-card">
+              <div class="card-header-clean flex-wrap gap-2">
+                <h3><i class="bi bi-table me-2 text-danger"></i>ตารางข้อมูลคำขอทั้งหมด (แก้ไข / ลบ ข้อมูล)</h3>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
+                    <i class="bi bi-database-check me-1"></i> Cloudflare D1 + Google Sheets Dual-Sync
+                  </span>
+                </div>
+              </div>
+
+              <div class="table-responsive p-3">
+                <table id="tableAdmin" class="table table-hover w-100 align-middle">
+                  <thead>
+                    <tr>
+                      <th style="width: 140px;">จัดการ</th>
+                      <th>ID</th>
+                      <th>สถานะ</th>
+                      <th>ออกเดินทาง</th>
+                      <th>กลับถึง</th>
+                      <th>ผู้ขอ</th>
+                      <th>สถานที่</th>
+                      <th>พขร.</th>
+                      <th>ทะเบียน</th>
+                      <th>ไมล์รวม</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          <div class="table-responsive p-3">
-            <table id="tableAdmin" class="table table-hover w-100 align-middle">
-              <thead>
-                <tr>
-                  <th style="width: 140px;">จัดการ</th>
-                  <th>ID</th>
-                  <th>สถานะ</th>
-                  <th>ออกเดินทาง</th>
-                  <th>กลับถึง</th>
-                  <th>ผู้ขอ</th>
-                  <th>สถานที่</th>
-                  <th>พขร.</th>
-                  <th>ทะเบียน</th>
-                  <th>ไมล์รวม</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+          <!-- 2. Tab เจ้าหน้าที่และกลุ่มงาน -->
+          <div class="tab-pane fade" id="tab-admin-users" role="tabpanel">
+            <div class="app-card">
+              <div class="card-header-clean flex-wrap gap-3">
+                <div>
+                  <h3 class="m-0"><i class="bi bi-people-fill me-2 text-primary"></i>จัดการรายชื่อเจ้าหน้าที่และกลุ่มงาน</h3>
+                  <div class="mt-2 d-flex gap-2 flex-wrap">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill">
+                      <i class="bi bi-person-check-fill me-1"></i> เจ้าหน้าที่ <span id="adminUsersCount" class="fw-bold">0</span> คน
+                    </span>
+                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle px-3 py-2 rounded-pill">
+                      <i class="bi bi-diagram-3-fill me-1"></i> กลุ่มงาน/แผนก <span id="adminDeptsCount" class="fw-bold">0</span> แผนก
+                    </span>
+                  </div>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                  <button class="btn btn-outline-primary rounded-pill px-3 shadow-sm font-heading" onclick="openManageDeptsModal()">
+                    <i class="bi bi-diagram-3 me-1"></i> จัดการกลุ่มงาน/แผนก
+                  </button>
+                  <button class="btn btn-primary rounded-pill px-3 shadow-sm font-heading" onclick="openMasterUserModal(-1)">
+                    <i class="bi bi-person-plus-fill me-1"></i> เพิ่มเจ้าหน้าที่ใหม่
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filter Bar -->
+              <div class="p-3 bg-light-subtle border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-2">
+                  <label class="form-label m-0 small fw-bold text-muted text-nowrap"><i class="bi bi-funnel me-1"></i>กรองตามกลุ่มงาน:</label>
+                  <select id="filterAdminUserGroup" class="form-select form-select-sm rounded-pill" style="min-width: 200px;" onchange="filterAdminUsersByGroup()">
+                    <option value="">-- แสดงทุกกลุ่มงาน/แผนก --</option>
+                  </select>
+                </div>
+                <div class="small text-muted">
+                  <i class="bi bi-info-circle me-1"></i> การเพิ่ม/แก้ไข/ลบ จะซิงค์กับฐานข้อมูล D1 และ Google Sheets ทันที
+                </div>
+              </div>
+
+              <div class="table-responsive p-3">
+                <table id="tableAdminUsers" class="table table-hover w-100 align-middle">
+                  <thead>
+                    <tr>
+                      <th style="width: 60px;">#</th>
+                      <th>ชื่อ - นามสกุล เจ้าหน้าที่</th>
+                      <th>กลุ่มงาน / แผนก / ฝ่าย</th>
+                      <th style="width: 140px; text-align: center;">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
           </div>
+
+          <!-- 3. Tab ยานพาหนะ / รถยนต์ -->
+          <div class="tab-pane fade" id="tab-admin-cars" role="tabpanel">
+            <div class="app-card">
+              <div class="card-header-clean flex-wrap gap-3">
+                <div>
+                  <h3 class="m-0"><i class="bi bi-car-front-fill me-2 text-primary"></i>จัดการฐานข้อมูลยานพาหนะ / รถยนต์</h3>
+                  <div class="mt-2">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill">
+                      <i class="bi bi-car-front me-1"></i> ยานพาหนะทั้งหมด <span id="adminCarsCount" class="fw-bold">0</span> คัน
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <button class="btn btn-primary rounded-pill px-3 shadow-sm font-heading" onclick="openMasterCarModal(-1)">
+                    <i class="bi bi-plus-circle me-1"></i> เพิ่มยานพาหนะใหม่
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive p-3">
+                <table id="tableAdminCars" class="table table-hover w-100 align-middle">
+                  <thead>
+                    <tr>
+                      <th style="width: 60px;">#</th>
+                      <th>หมายเลขทะเบียน</th>
+                      <th>ยี่ห้อ / รุ่น / ประเภทรถ</th>
+                      <th style="width: 140px; text-align: center;">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Tab พนักงานขับรถ (พขร.) -->
+          <div class="tab-pane fade" id="tab-admin-drivers" role="tabpanel">
+            <div class="app-card">
+              <div class="card-header-clean flex-wrap gap-3">
+                <div>
+                  <h3 class="m-0"><i class="bi bi-person-badge-fill me-2 text-primary"></i>จัดการรายชื่อพนักงานขับรถ (พขร.)</h3>
+                  <div class="mt-2">
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill">
+                      <i class="bi bi-person-badge me-1"></i> พนักงานขับรถทั้งหมด <span id="adminDriversCount" class="fw-bold">0</span> คน
+                    </span>
+                  </div>
+                </div>
+                <div>
+                  <button class="btn btn-primary rounded-pill px-3 shadow-sm font-heading" onclick="openMasterDriverModal(-1)">
+                    <i class="bi bi-person-plus-fill me-1"></i> เพิ่ม พขร. ใหม่
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive p-3">
+                <table id="tableAdminDrivers" class="table table-hover w-100 align-middle">
+                  <thead>
+                    <tr>
+                      <th style="width: 60px;">#</th>
+                      <th>ชื่อ - นามสกุล พนักงานขับรถ (พขร.)</th>
+                      <th style="width: 140px; text-align: center;">จัดการ</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
@@ -2779,6 +2955,136 @@ h1, h2, h3, h4, h5, h6, .font-heading {
                 <i class="bi bi-save me-1"></i> บันทึกการแก้ไข
               </button>
             </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 9. Modal เพิ่ม/แก้ไข เจ้าหน้าที่ -->
+<div class="modal fade" id="modalMasterUser" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header bg-primary text-white rounded-top-4">
+        <h5 class="modal-title font-heading" id="modalMasterUserTitle"><i class="bi bi-person-plus me-2"></i>ข้อมูลเจ้าหน้าที่</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="formMasterUser" onsubmit="event.preventDefault(); saveMasterUser();">
+          <input type="hidden" id="mu_idx" value="-1">
+          <div class="mb-3">
+            <label class="form-label fw-bold">ชื่อ - นามสกุล เจ้าหน้าที่ <span class="text-danger">*</span></label>
+            <input type="text" id="mu_name" class="form-control" placeholder="เช่น นายสมชาย ใจดี" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">กลุ่มงาน / แผนก / ฝ่าย <span class="text-danger">*</span></label>
+            <input type="text" list="mu_group_datalist" id="mu_group" class="form-control" placeholder="เลือกหรือพิมพ์กลุ่มงาน..." required>
+            <datalist id="mu_group_datalist"></datalist>
+            <div class="form-text small text-muted">สามารถเลือกจากรายการที่มีอยู่แล้ว หรือพิมพ์ชื่อกลุ่มงานใหม่ลงไปได้ทันที</div>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-2 border-top">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary rounded-pill px-4 font-heading" id="btnSaveMasterUser">
+              <i class="bi bi-check2-circle me-1"></i> บันทึกข้อมูล
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 10. Modal จัดการกลุ่มงาน/แผนก -->
+<div class="modal fade" id="modalMasterDepts" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header bg-info text-white rounded-top-4">
+        <h5 class="modal-title font-heading"><i class="bi bi-diagram-3 me-2"></i>จัดการกลุ่มงาน / แผนก</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="alert alert-info py-2 px-3 small rounded-3 mb-3">
+          <i class="bi bi-info-circle me-1"></i> การเปลี่ยนชื่อกลุ่มงานจะอัปเดตรายชื่อเจ้าหน้าที่ทุกคนในกลุ่มงานนั้นให้โดยอัตโนมัติ
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="fw-bold">รายชื่อกลุ่มงาน/แผนกทั้งหมด (<span id="deptListCount">0</span> แผนก)</span>
+          <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="promptAddNewDept()">
+            <i class="bi bi-plus-circle me-1"></i> เพิ่มกลุ่มงานใหม่
+          </button>
+        </div>
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+          <table class="table table-hover align-middle" id="tableDeptsManagement">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>ชื่อกลุ่มงาน / แผนก</th>
+                <th style="width: 140px; text-align: center;">จำนวนบุคลากร</th>
+                <th style="width: 180px; text-align: center;">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="deptTableBody"></tbody>
+          </table>
+        </div>
+        <div class="d-flex justify-content-end mt-3 pt-2 border-top">
+          <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">ปิดหน้าต่าง</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 11. Modal เพิ่ม/แก้ไข ยานพาหนะ -->
+<div class="modal fade" id="modalMasterCar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header bg-primary text-white rounded-top-4">
+        <h5 class="modal-title font-heading" id="modalMasterCarTitle"><i class="bi bi-car-front me-2"></i>ข้อมูลยานพาหนะ</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="formMasterCar" onsubmit="event.preventDefault(); saveMasterCar();">
+          <input type="hidden" id="mc_idx" value="-1">
+          <div class="mb-3">
+            <label class="form-label fw-bold">หมายเลขทะเบียนรถ <span class="text-danger">*</span></label>
+            <input type="text" id="mc_plate" class="form-control font-heading fw-bold" placeholder="เช่น กจ2355กจ, 40-0235" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">ยี่ห้อ / รุ่น / ประเภทรถ <span class="text-danger">*</span></label>
+            <input type="text" id="mc_model" class="form-control" placeholder="เช่น TOYOTA ตู้, AMBULANCE" required>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-2 border-top">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary rounded-pill px-4 font-heading" id="btnSaveMasterCar">
+              <i class="bi bi-check2-circle me-1"></i> บันทึกข้อมูล
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 12. Modal เพิ่ม/แก้ไข พนักงานขับรถ (พขร.) -->
+<div class="modal fade" id="modalMasterDriver" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header bg-primary text-white rounded-top-4">
+        <h5 class="modal-title font-heading" id="modalMasterDriverTitle"><i class="bi bi-person-badge me-2"></i>ข้อมูลพนักงานขับรถ (พขร.)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="formMasterDriver" onsubmit="event.preventDefault(); saveMasterDriver();">
+          <input type="hidden" id="md_idx" value="-1">
+          <div class="mb-3">
+            <label class="form-label fw-bold">ชื่อ - นามสกุล พนักงานขับรถ (พขร.) <span class="text-danger">*</span></label>
+            <input type="text" id="md_name" class="form-control" placeholder="เช่น นายสมเกียรติ ธรรมจารุสิริ" required>
+          </div>
+          <div class="d-flex justify-content-end gap-2 mt-4 pt-2 border-top">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary rounded-pill px-4 font-heading" id="btnSaveMasterDriver">
+              <i class="bi bi-check2-circle me-1"></i> บันทึกข้อมูล
+            </button>
           </div>
         </form>
       </div>
@@ -4462,6 +4768,10 @@ let modalOilReq = null;
 let modalOilPen = null;
 let modalOilApp = null;
 let modalOilRep = null;
+let modalMasterUser = null;
+let modalMasterDepts = null;
+let modalMasterCar = null;
+let modalMasterDriver = null;
 
 /* ==========================================================================
    1. API Communication
@@ -6517,9 +6827,10 @@ function switchPage(pageId, linkElement = null) {
       renderAdminTable();
       updateAdminCounters();
     }
+    renderAllMasterTables();
     setTimeout(() => {
-      if ($.fn.DataTable && $.fn.DataTable.isDataTable('#tableAdmin')) {
-        $('#tableAdmin').DataTable().columns.adjust().responsive.recalc();
+      if ($.fn.DataTable) {
+        $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust().responsive.recalc();
       }
     }, 50);
   }
@@ -6693,6 +7004,38 @@ window.addEventListener('DOMContentLoaded', () => {
   if (modalAdminEl) {
     modalAdminEdit = new bootstrap.Modal(modalAdminEl);
   }
+  const modalMasterUserEl = document.getElementById('modalMasterUser');
+  if (modalMasterUserEl) modalMasterUser = new bootstrap.Modal(modalMasterUserEl);
+
+  const modalMasterDeptsEl = document.getElementById('modalMasterDepts');
+  if (modalMasterDeptsEl) modalMasterDepts = new bootstrap.Modal(modalMasterDeptsEl);
+
+  const modalMasterCarEl = document.getElementById('modalMasterCar');
+  if (modalMasterCarEl) modalMasterCar = new bootstrap.Modal(modalMasterCarEl);
+
+  const modalMasterDriverEl = document.getElementById('modalMasterDriver');
+  if (modalMasterDriverEl) modalMasterDriver = new bootstrap.Modal(modalMasterDriverEl);
+
+  // Tab switching inside Admin page
+  document.querySelectorAll('#adminTabs button[data-bs-toggle="pill"]').forEach(btn => {
+    btn.addEventListener('shown.bs.tab', (e) => {
+      const target = e.target.getAttribute('data-bs-target');
+      if (target === '#tab-admin-users') {
+        renderMasterUsersTable();
+      } else if (target === '#tab-admin-cars') {
+        renderMasterCarsTable();
+      } else if (target === '#tab-admin-drivers') {
+        renderMasterDriversTable();
+      } else if (target === '#tab-admin-requests') {
+        renderAdminTable();
+      }
+      setTimeout(() => {
+        if ($.fn.DataTable) {
+          $.fn.dataTable.tables({ visible: true, api: true }).columns.adjust().responsive.recalc();
+        }
+      }, 50);
+    });
+  });
 
   // Init Signatures
   sigPad1 = new DigitalSignature('sigCanvas1');
@@ -7208,6 +7551,637 @@ window.adminDeleteRecord = adminDeleteRecord;
 window.adminDeleteCurrentRecord = adminDeleteCurrentRecord;
 window.exportAdminCSV = exportAdminCSV;
 window.lockAdminSession = lockAdminSession;
+
+/* ==========================================================================
+   15. Master Data Management (Staff, Departments, Cars, Drivers)
+   ========================================================================== */
+
+let dtAdminUsers = null;
+let dtAdminCars = null;
+let dtAdminDrivers = null;
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ดึงรายชื่อกลุ่มงาน/แผนกทั้งหมดแบบไม่ซ้ำกัน
+function getDistinctDepartments() {
+  const depts = new Set();
+  if (Array.isArray(userList)) {
+    userList.forEach(u => {
+      const g = (u && u.group ? String(u.group).trim() : '');
+      if (g) depts.add(g);
+    });
+  }
+  return Array.from(depts).sort((a, b) => a.localeCompare(b, 'th'));
+}
+
+// 1. ตารางเจ้าหน้าที่และกลุ่มงาน (Users & Departments Table)
+function renderMasterUsersTable(filterGroup = '') {
+  const tableEl = document.getElementById('tableAdminUsers');
+  if (!tableEl) return;
+
+  const depts = getDistinctDepartments();
+
+  // อัปเดตตัวเลขสถิติ
+  const elUsersCount = document.getElementById('adminUsersCount');
+  const elDeptsCount = document.getElementById('adminDeptsCount');
+  if (elUsersCount) elUsersCount.textContent = userList.length;
+  if (elDeptsCount) elDeptsCount.textContent = depts.length;
+
+  // อัปเดต Dropdown กรองกลุ่มงาน (โดยจำค่าที่เลือกไว้)
+  const filterSelect = document.getElementById('filterAdminUserGroup');
+  if (filterSelect) {
+    const currentVal = filterGroup !== '' ? filterGroup : (filterSelect.value || '');
+    let optHtml = '<option value="">-- แสดงทุกกลุ่มงาน/แผนก --</option>';
+    depts.forEach(d => {
+      const sel = d === currentVal ? 'selected' : '';
+      optHtml += `<option value="${escapeHtml(d)}" ${sel}>${escapeHtml(d)}</option>`;
+    });
+    filterSelect.innerHTML = optHtml;
+  }
+
+  // อัปเดต datalist สำหรับกรอกกลุ่มงานใน Modal
+  const datalistEl = document.getElementById('mu_group_datalist');
+  if (datalistEl) {
+    let dlHtml = '';
+    depts.forEach(d => {
+      dlHtml += `<option value="${escapeHtml(d)}"></option>`;
+    });
+    datalistEl.innerHTML = dlHtml;
+  }
+
+  const tableData = [];
+  const selectedFilter = filterSelect ? filterSelect.value : filterGroup;
+
+  userList.forEach((u, idx) => {
+    if (!u || !u.name) return;
+    const grp = u.group || '';
+    if (selectedFilter && grp !== selectedFilter) return;
+
+    const actionBtns = `
+      <div class="d-flex justify-content-center gap-1">
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" onclick="openMasterUserModal(${idx})" title="แก้ไข">
+          <i class="bi bi-pencil-square"></i> แก้ไข
+        </button>
+        <button class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="deleteMasterUser(${idx})" title="ลบ">
+          <i class="bi bi-trash"></i> ลบ
+        </button>
+      </div>
+    `;
+
+    tableData.push([
+      idx + 1,
+      `<span class="fw-semibold text-main">${escapeHtml(u.name)}</span>`,
+      grp ? `<span class="badge bg-light text-dark border px-2 py-1">${escapeHtml(grp)}</span>` : '<span class="text-muted small">ไม่ระบุกลุ่มงาน</span>',
+      actionBtns
+    ]);
+  });
+
+  if ($.fn.DataTable.isDataTable('#tableAdminUsers')) {
+    const dt = $('#tableAdminUsers').DataTable();
+    dt.clear().rows.add(tableData).draw(false);
+    setTimeout(() => dt.columns.adjust().responsive.recalc(), 10);
+  } else {
+    $('#tableAdminUsers').DataTable({
+      data: tableData,
+      responsive: true,
+      autoWidth: false,
+      language: DATATABLES_THAI_LANG,
+      pageLength: 20,
+      stateSave: false,
+      columnDefs: [
+        { className: 'text-center', targets: [0, 3] }
+      ]
+    });
+  }
+}
+
+function filterAdminUsersByGroup() {
+  const grp = $('#filterAdminUserGroup').val() || '';
+  renderMasterUsersTable(grp);
+}
+
+// 2. ตารางยานพาหนะ / รถยนต์ (Cars Table)
+function renderMasterCarsTable() {
+  const tableEl = document.getElementById('tableAdminCars');
+  if (!tableEl) return;
+
+  const elCarsCount = document.getElementById('adminCarsCount');
+  if (elCarsCount) elCarsCount.textContent = carList.length;
+
+  const tableData = [];
+  carList.forEach((c, idx) => {
+    if (!c || !c.plate) return;
+
+    const actionBtns = `
+      <div class="d-flex justify-content-center gap-1">
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" onclick="openMasterCarModal(${idx})" title="แก้ไข">
+          <i class="bi bi-pencil-square"></i> แก้ไข
+        </button>
+        <button class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="deleteMasterCar(${idx})" title="ลบ">
+          <i class="bi bi-trash"></i> ลบ
+        </button>
+      </div>
+    `;
+
+    tableData.push([
+      idx + 1,
+      `<span class="fw-bold font-heading text-primary">${escapeHtml(c.plate)}</span>`,
+      escapeHtml(c.model || '-'),
+      actionBtns
+    ]);
+  });
+
+  if ($.fn.DataTable.isDataTable('#tableAdminCars')) {
+    const dt = $('#tableAdminCars').DataTable();
+    dt.clear().rows.add(tableData).draw(false);
+    setTimeout(() => dt.columns.adjust().responsive.recalc(), 10);
+  } else {
+    $('#tableAdminCars').DataTable({
+      data: tableData,
+      responsive: true,
+      autoWidth: false,
+      language: DATATABLES_THAI_LANG,
+      pageLength: 15,
+      stateSave: false,
+      columnDefs: [
+        { className: 'text-center', targets: [0, 3] }
+      ]
+    });
+  }
+}
+
+// 3. ตารางพนักงานขับรถ (Drivers Table)
+function renderMasterDriversTable() {
+  const tableEl = document.getElementById('tableAdminDrivers');
+  if (!tableEl) return;
+
+  const elDriversCount = document.getElementById('adminDriversCount');
+  if (elDriversCount) elDriversCount.textContent = driverList.length;
+
+  const tableData = [];
+  driverList.forEach((d, idx) => {
+    const driverName = typeof d === 'string' ? d : (d.name || '');
+    if (!driverName) return;
+
+    const actionBtns = `
+      <div class="d-flex justify-content-center gap-1">
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" onclick="openMasterDriverModal(${idx})" title="แก้ไข">
+          <i class="bi bi-pencil-square"></i> แก้ไข
+        </button>
+        <button class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="deleteMasterDriver(${idx})" title="ลบ">
+          <i class="bi bi-trash"></i> ลบ
+        </button>
+      </div>
+    `;
+
+    tableData.push([
+      idx + 1,
+      `<span class="fw-bold font-heading text-main">${escapeHtml(driverName)}</span>`,
+      actionBtns
+    ]);
+  });
+
+  if ($.fn.DataTable.isDataTable('#tableAdminDrivers')) {
+    const dt = $('#tableAdminDrivers').DataTable();
+    dt.clear().rows.add(tableData).draw(false);
+    setTimeout(() => dt.columns.adjust().responsive.recalc(), 10);
+  } else {
+    $('#tableAdminDrivers').DataTable({
+      data: tableData,
+      responsive: true,
+      autoWidth: false,
+      language: DATATABLES_THAI_LANG,
+      pageLength: 15,
+      stateSave: false,
+      columnDefs: [
+        { className: 'text-center', targets: [0, 2] }
+      ]
+    });
+  }
+}
+
+function renderAllMasterTables() {
+  renderMasterUsersTable();
+  renderMasterCarsTable();
+  renderMasterDriversTable();
+}
+
+// 4. บันทึกและซิงค์ข้อมูล Master Options ทั้งหมด
+async function persistMasterOptions(showNotification = true) {
+  // บันทึกลง localStorage ทันที (0ms offline-first)
+  try {
+    localStorage.setItem(CACHE_KEY_OPTIONS, JSON.stringify({
+      users: userList,
+      drivers: driverList,
+      cars: carList,
+      updatedAt: new Date().toISOString()
+    }));
+  } catch (err) {
+    console.warn('[Cache] บันทึกแคชตัวเลือกลงเครื่องไม่สำเร็จ:', err);
+  }
+
+  // อัปเดต Dropdown ในทุกฟอร์มทันที
+  populateUserSelect();
+  populateDriverSelects();
+  populateCarSelects();
+
+  if (showNotification) {
+    Swal.fire({
+      title: 'กำลังซิงค์ข้อมูล...',
+      text: 'กำลังบันทึกลง D1 และ Google Sheets',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
+  }
+
+  try {
+    const res = await callAPI('saveOptions', {
+      users: userList,
+      drivers: driverList,
+      cars: carList
+    });
+
+    if (showNotification) {
+      Swal.fire({
+        icon: 'success',
+        title: 'บันทึกสำเร็จ',
+        text: 'บันทึกและซิงค์ข้อมูลส่วนกลาง (D1 & Google Sheets) เรียบร้อยแล้ว',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    }
+    return true;
+  } catch (apiErr) {
+    console.warn('[MasterData] บันทึกไปยังเซิร์ฟเวอร์ไม่สำเร็จ:', apiErr);
+    if (showNotification) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'บันทึกในเครื่องเรียบร้อย',
+        text: 'ข้อมูลบันทึกลงในเครื่องแล้ว แต่การซิงค์ออนไลน์ขัดข้อง: ' + (apiErr.message || apiErr)
+      });
+    }
+    return false;
+  }
+}
+
+// 5. การจัดการข้อมูลเจ้าหน้าที่ (User CRUD)
+function openMasterUserModal(idx = -1) {
+  const modalEl = document.getElementById('modalMasterUser');
+  if (!modalEl) return;
+
+  const depts = getDistinctDepartments();
+  const datalistEl = document.getElementById('mu_group_datalist');
+  if (datalistEl) {
+    datalistEl.innerHTML = depts.map(d => `<option value="${escapeHtml(d)}"></option>`).join('');
+  }
+
+  const titleEl = document.getElementById('modalMasterUserTitle');
+  $('#mu_idx').val(idx);
+
+  if (idx >= 0 && userList[idx]) {
+    if (titleEl) titleEl.innerHTML = '<i class="bi bi-pencil-square me-2"></i>แก้ไขข้อมูลเจ้าหน้าที่';
+    $('#mu_name').val(userList[idx].name || '');
+    $('#mu_group').val(userList[idx].group || '');
+  } else {
+    if (titleEl) titleEl.innerHTML = '<i class="bi bi-person-plus me-2"></i>เพิ่มเจ้าหน้าที่ใหม่';
+    $('#mu_name').val('');
+    $('#mu_group').val($('#filterAdminUserGroup').val() || '');
+  }
+
+  if (modalMasterUser) modalMasterUser.show();
+}
+
+async function saveMasterUser() {
+  const idx = parseInt($('#mu_idx').val(), 10);
+  const name = ($('#mu_name').val() || '').trim();
+  const group = ($('#mu_group').val() || '').trim();
+
+  if (!name) {
+    return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุชื่อ-นามสกุลของเจ้าหน้าที่', 'warning');
+  }
+
+  if (idx >= 0 && userList[idx]) {
+    userList[idx] = { name, group };
+  } else {
+    // ตรวจสอบชื่อซ้ำ
+    const dup = userList.find(u => u.name === name);
+    if (dup) {
+      const confirmDup = await Swal.fire({
+        title: 'ชื่อซ้ำในระบบ',
+        text: `มีชื่อ "${name}" ในระบบแล้ว (กลุ่มงาน: ${dup.group || 'ไม่ระบุ'}) ต้องการเพิ่มซ้ำหรือไม่?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยันเพิ่ม',
+        cancelButtonText: 'ยกเลิก'
+      });
+      if (!confirmDup.isConfirmed) return;
+    }
+    userList.unshift({ name, group });
+  }
+
+  if (modalMasterUser) modalMasterUser.hide();
+  renderMasterUsersTable($('#filterAdminUserGroup').val());
+  await persistMasterOptions(true);
+}
+
+async function deleteMasterUser(idx) {
+  if (idx < 0 || !userList[idx]) return;
+  const target = userList[idx];
+
+  const confirmRes = await Swal.fire({
+    title: 'ยืนยันการลบ?',
+    html: `คุณต้องการลบเจ้าหน้าที่ <b>${escapeHtml(target.name)}</b><br><small class="text-muted">(${escapeHtml(target.group || 'ไม่ระบุกลุ่มงาน')})</small> ออกจากระบบหรือไม่?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc2626',
+    confirmButtonText: '<i class="bi bi-trash me-1"></i> ลบข้อมูล',
+    cancelButtonText: 'ยกเลิก'
+  });
+
+  if (confirmRes.isConfirmed) {
+    userList.splice(idx, 1);
+    renderMasterUsersTable($('#filterAdminUserGroup').val());
+    await persistMasterOptions(true);
+  }
+}
+
+// 6. การจัดการกลุ่มงาน/แผนก (Departments Management)
+function openManageDeptsModal() {
+  const depts = getDistinctDepartments();
+  const elCount = document.getElementById('deptListCount');
+  if (elCount) elCount.textContent = depts.length;
+
+  const tbody = document.getElementById('deptTableBody');
+  if (!tbody) return;
+
+  let html = '';
+  if (depts.length === 0) {
+    html = '<tr><td colspan="4" class="text-center text-muted py-3">ยังไม่มีข้อมูลกลุ่มงานในระบบ</td></tr>';
+  } else {
+    depts.forEach((d, i) => {
+      const count = userList.filter(u => (u.group || '').trim() === d).length;
+      html += `
+        <tr>
+          <td class="text-center">${i + 1}</td>
+          <td><span class="fw-bold font-heading text-main">${escapeHtml(d)}</span></td>
+          <td class="text-center"><span class="badge bg-primary-subtle text-primary border rounded-pill px-3 py-1">${count} คน</span></td>
+          <td class="text-center">
+            <button class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1 me-1" onclick="promptRenameDept('${escapeHtml(d)}')">
+              <i class="bi bi-pencil-square"></i> เปลี่ยนชื่อ
+            </button>
+            <button class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="promptDeleteDept('${escapeHtml(d)}')">
+              <i class="bi bi-trash"></i> ลบ
+            </button>
+          </td>
+        </tr>
+      `;
+    });
+  }
+  tbody.innerHTML = html;
+
+  if (modalMasterDepts) modalMasterDepts.show();
+}
+
+async function promptAddNewDept() {
+  const { value: newDept } = await Swal.fire({
+    title: 'เพิ่มกลุ่มงาน / แผนกใหม่',
+    input: 'text',
+    inputPlaceholder: 'เช่น กลุ่มงานการแพทย์, แผนกพัสดุ',
+    showCancelButton: true,
+    confirmButtonText: 'ถัดไป',
+    cancelButtonText: 'ยกเลิก',
+    inputValidator: (val) => {
+      if (!val || !val.trim()) return 'กรุณาระบุชื่อกลุ่มงาน';
+    }
+  });
+
+  if (newDept && newDept.trim()) {
+    const trimmed = newDept.trim();
+    if (modalMasterDepts) modalMasterDepts.hide();
+    openMasterUserModal(-1);
+    $('#mu_group').val(trimmed);
+  }
+}
+
+async function promptRenameDept(oldName) {
+  const count = userList.filter(u => (u.group || '').trim() === oldName).length;
+  const { value: newName } = await Swal.fire({
+    title: 'เปลี่ยนชื่อกลุ่มงาน / แผนก',
+    html: `เปลี่ยนชื่อกลุ่มงาน: <b>${escapeHtml(oldName)}</b><br><small class="text-muted">(มีเจ้าหน้าที่อยู่ในกลุ่มงานนี้ ${count} คน)</small>`,
+    input: 'text',
+    inputValue: oldName,
+    showCancelButton: true,
+    confirmButtonText: 'บันทึกชื่อใหม่',
+    cancelButtonText: 'ยกเลิก',
+    inputValidator: (val) => {
+      if (!val || !val.trim()) return 'กรุณาระบุชื่อกลุ่มงานใหม่';
+      if (val.trim() === oldName) return 'ชื่อกลุ่มงานเหมือนเดิม';
+    }
+  });
+
+  if (newName && newName.trim()) {
+    const targetNew = newName.trim();
+    userList.forEach(u => {
+      if ((u.group || '').trim() === oldName) {
+        u.group = targetNew;
+      }
+    });
+
+    openManageDeptsModal();
+    renderMasterUsersTable($('#filterAdminUserGroup').val());
+    await persistMasterOptions(true);
+  }
+}
+
+async function promptDeleteDept(deptName) {
+  const count = userList.filter(u => (u.group || '').trim() === deptName).length;
+
+  const confirmRes = await Swal.fire({
+    title: 'ยืนยันลบกลุ่มงาน?',
+    html: `คุณต้องการลบกลุ่มงาน <b>${escapeHtml(deptName)}</b> หรือไม่?<br>
+           <div class="alert alert-warning py-2 mt-2 small">
+             มีเจ้าหน้าที่ในกลุ่มงานนี้ <b>${count}</b> คน เจ้าหน้าที่จะถูกเปลี่ยนกลุ่มงานเป็น "ไม่ระบุกลุ่มงาน"
+           </div>`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc2626',
+    confirmButtonText: 'ยืนยันการลบ',
+    cancelButtonText: 'ยกเลิก'
+  });
+
+  if (confirmRes.isConfirmed) {
+    userList.forEach(u => {
+      if ((u.group || '').trim() === deptName) {
+        u.group = '';
+      }
+    });
+
+    openManageDeptsModal();
+    renderMasterUsersTable();
+    await persistMasterOptions(true);
+  }
+}
+
+// 7. การจัดการข้อมูลรถยนต์ (Car CRUD)
+function openMasterCarModal(idx = -1) {
+  const modalEl = document.getElementById('modalMasterCar');
+  if (!modalEl) return;
+
+  const titleEl = document.getElementById('modalMasterCarTitle');
+  $('#mc_idx').val(idx);
+
+  if (idx >= 0 && carList[idx]) {
+    if (titleEl) titleEl.innerHTML = '<i class="bi bi-pencil-square me-2"></i>แก้ไขข้อมูลยานพาหนะ';
+    $('#mc_plate').val(carList[idx].plate || '');
+    $('#mc_model').val(carList[idx].model || '');
+  } else {
+    if (titleEl) titleEl.innerHTML = '<i class="bi bi-plus-circle me-2"></i>เพิ่มยานพาหนะใหม่';
+    $('#mc_plate').val('');
+    $('#mc_model').val('');
+  }
+
+  if (modalMasterCar) modalMasterCar.show();
+}
+
+async function saveMasterCar() {
+  const idx = parseInt($('#mc_idx').val(), 10);
+  const plate = ($('#mc_plate').val() || '').trim();
+  const model = ($('#mc_model').val() || '').trim();
+
+  if (!plate) {
+    return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุหมายเลขทะเบียนรถ', 'warning');
+  }
+
+  if (idx >= 0 && carList[idx]) {
+    carList[idx] = { plate, model };
+  } else {
+    // ตรวจสอบทะเบียนซ้ำ
+    const dup = carList.find(c => (c.plate || '').toLowerCase() === plate.toLowerCase());
+    if (dup) {
+      return Swal.fire('ทะเบียนซ้ำ', `มีรถหมายเลขทะเบียน "${plate}" อยู่ในระบบแล้ว`, 'warning');
+    }
+    carList.unshift({ plate, model });
+  }
+
+  if (modalMasterCar) modalMasterCar.hide();
+  renderMasterCarsTable();
+  await persistMasterOptions(true);
+}
+
+async function deleteMasterCar(idx) {
+  if (idx < 0 || !carList[idx]) return;
+  const target = carList[idx];
+
+  const confirmRes = await Swal.fire({
+    title: 'ยืนยันการลบรถยนต์?',
+    html: `คุณต้องการลบรถทะเบียน <b>${escapeHtml(target.plate)}</b> (${escapeHtml(target.model || '-')}) ออกจากระบบหรือไม่?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc2626',
+    confirmButtonText: '<i class="bi bi-trash me-1"></i> ลบข้อมูลรถ',
+    cancelButtonText: 'ยกเลิก'
+  });
+
+  if (confirmRes.isConfirmed) {
+    carList.splice(idx, 1);
+    renderMasterCarsTable();
+    await persistMasterOptions(true);
+  }
+}
+
+// 8. การจัดการข้อมูลพนักงานขับรถ (Driver CRUD)
+function openMasterDriverModal(idx = -1) {
+  const modalEl = document.getElementById('modalMasterDriver');
+  if (!modalEl) return;
+
+  const titleEl = document.getElementById('modalMasterDriverTitle');
+  $('#md_idx').val(idx);
+
+  if (idx >= 0 && driverList[idx]) {
+    if (titleEl) titleEl.innerHTML = '<i class="bi bi-pencil-square me-2"></i>แก้ไขข้อมูล พขร.';
+    const currentName = typeof driverList[idx] === 'string' ? driverList[idx] : (driverList[idx].name || '');
+    $('#md_name').val(currentName);
+  } else {
+    if (titleEl) titleEl.innerHTML = '<i class="bi bi-person-plus me-2"></i>เพิ่ม พขร. ใหม่';
+    $('#md_name').val('');
+  }
+
+  if (modalMasterDriver) modalMasterDriver.show();
+}
+
+async function saveMasterDriver() {
+  const idx = parseInt($('#md_idx').val(), 10);
+  const name = ($('#md_name').val() || '').trim();
+
+  if (!name) {
+    return Swal.fire('ข้อมูลไม่ครบ', 'กรุณาระบุชื่อ-นามสกุลของพนักงานขับรถ', 'warning');
+  }
+
+  if (idx >= 0 && driverList[idx]) {
+    driverList[idx] = name;
+  } else {
+    // ตรวจสอบชื่อซ้ำ
+    const dup = driverList.find(d => (typeof d === 'string' ? d : d.name) === name);
+    if (dup) {
+      return Swal.fire('ชื่อซ้ำ', `มีพนักงานขับรถชื่อ "${name}" อยู่ในระบบแล้ว`, 'warning');
+    }
+    driverList.unshift(name);
+  }
+
+  if (modalMasterDriver) modalMasterDriver.hide();
+  renderMasterDriversTable();
+  await persistMasterOptions(true);
+}
+
+async function deleteMasterDriver(idx) {
+  if (idx < 0 || !driverList[idx]) return;
+  const name = typeof driverList[idx] === 'string' ? driverList[idx] : (driverList[idx].name || '');
+
+  const confirmRes = await Swal.fire({
+    title: 'ยืนยันการลบ พขร.?',
+    html: `คุณต้องการลบพนักงานขับรถ <b>${escapeHtml(name)}</b> ออกจากระบบหรือไม่?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc2626',
+    confirmButtonText: '<i class="bi bi-trash me-1"></i> ลบข้อมูล พขร.',
+    cancelButtonText: 'ยกเลิก'
+  });
+
+  if (confirmRes.isConfirmed) {
+    driverList.splice(idx, 1);
+    renderMasterDriversTable();
+    await persistMasterOptions(true);
+  }
+}
+
+// Window global bindings
+window.renderMasterUsersTable = renderMasterUsersTable;
+window.renderMasterCarsTable = renderMasterCarsTable;
+window.renderMasterDriversTable = renderMasterDriversTable;
+window.renderAllMasterTables = renderAllMasterTables;
+window.filterAdminUsersByGroup = filterAdminUsersByGroup;
+window.openMasterUserModal = openMasterUserModal;
+window.saveMasterUser = saveMasterUser;
+window.deleteMasterUser = deleteMasterUser;
+window.openManageDeptsModal = openManageDeptsModal;
+window.promptAddNewDept = promptAddNewDept;
+window.promptRenameDept = promptRenameDept;
+window.promptDeleteDept = promptDeleteDept;
+window.openMasterCarModal = openMasterCarModal;
+window.saveMasterCar = saveMasterCar;
+window.deleteMasterCar = deleteMasterCar;
+window.openMasterDriverModal = openMasterDriverModal;
+window.saveMasterDriver = saveMasterDriver;
+window.deleteMasterDriver = deleteMasterDriver;
+window.persistMasterOptions = persistMasterOptions;
 
 
 </script>
