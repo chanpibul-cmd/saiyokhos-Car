@@ -1490,6 +1490,14 @@ h1, h2, h3, h4, h5, h6, .font-heading {
           <span>แดชบอร์ด</span>
         </a>
       </div>
+
+      <div class="nav-section-title">ระบบควบคุมส่วนกลาง</div>
+      <div class="nav-item">
+        <a class="nav-link text-danger" onclick="checkLoginAndSwitch('page-admin', this)">
+          <i class="bi bi-shield-lock-fill"></i>
+          <span>จัดการข้อมูล (Admin)</span>
+        </a>
+      </div>
     </div>
 
     <div class="sidebar-footer">
@@ -2092,6 +2100,85 @@ h1, h2, h3, h4, h5, h6, .font-heading {
             </div>
           </div>
         </div>
+      <!-- ================= 8. หน้าจัดการข้อมูล (Admin Management) ================= -->
+      <section id="page-admin" class="page-section">
+        <div class="page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <h2 class="page-header-title text-danger"><i class="bi bi-shield-lock-fill"></i> จัดการฐานข้อมูลส่วนกลาง (Admin)</h2>
+            <p class="page-header-subtitle">เข้าถึงข้อมูลทั้งหมด เพิ่ม ลบ แก้ไขรายการ และซิงค์ข้อมูลระหว่าง D1 กับ Google Sheets</p>
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-wrap">
+            <button class="btn btn-primary rounded-pill px-3 shadow-sm font-heading" onclick="switchPage('page-request')">
+              <i class="bi bi-plus-circle me-1"></i> เพิ่มคำขอใหม่
+            </button>
+            <button class="btn btn-outline-success rounded-pill px-3 shadow-sm font-heading" onclick="exportAdminCSV()">
+              <i class="bi bi-file-earmark-excel me-1"></i> ส่งออก CSV
+            </button>
+            <button class="btn btn-outline-danger rounded-pill px-3 font-heading" onclick="lockAdminSession()">
+              <i class="bi bi-box-arrow-right me-1"></i> ล็อกระบบ
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 KPI Cards for Admin -->
+        <div class="row g-3 mb-4">
+          <div class="col-6 col-md-3">
+            <div class="card p-3 border-0 rounded-4 shadow-sm bg-primary-subtle text-primary">
+              <span class="small text-muted fw-semibold">คำขอทั้งหมด</span>
+              <h3 class="m-0 mt-1 font-heading fw-bold" id="adminTotalCount">0</h3>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="card p-3 border-0 rounded-4 shadow-sm bg-danger-subtle text-danger">
+              <span class="small text-muted fw-semibold">รอจัดรถ</span>
+              <h3 class="m-0 mt-1 font-heading fw-bold" id="adminPendingCount">0</h3>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="card p-3 border-0 rounded-4 shadow-sm bg-warning-subtle text-warning-emphasis">
+              <span class="small text-muted fw-semibold">รอขับรถ / กำลังไป</span>
+              <h3 class="m-0 mt-1 font-heading fw-bold" id="adminAssignedCount">0</h3>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="card p-3 border-0 rounded-4 shadow-sm bg-success-subtle text-success">
+              <span class="small text-muted fw-semibold">เสร็จสิ้น</span>
+              <h3 class="m-0 mt-1 font-heading fw-bold" id="adminCompletedCount">0</h3>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Table Card -->
+        <div class="app-card">
+          <div class="card-header-clean flex-wrap gap-2">
+            <h3><i class="bi bi-table me-2 text-danger"></i>ตารางข้อมูลคำขอทั้งหมด (แก้ไข / ลบ ข้อมูล)</h3>
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill">
+                <i class="bi bi-database-check me-1"></i> Cloudflare D1 + Google Sheets Dual-Sync
+              </span>
+            </div>
+          </div>
+
+          <div class="table-responsive p-3">
+            <table id="tableAdmin" class="table table-hover w-100 align-middle">
+              <thead>
+                <tr>
+                  <th style="width: 140px;">จัดการ</th>
+                  <th>ID</th>
+                  <th>สถานะ</th>
+                  <th>ออกเดินทาง</th>
+                  <th>กลับถึง</th>
+                  <th>ผู้ขอ</th>
+                  <th>สถานที่</th>
+                  <th>พขร.</th>
+                  <th>ทะเบียน</th>
+                  <th>ไมล์รวม</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </section>
 
     </main>
@@ -2551,6 +2638,152 @@ h1, h2, h3, h4, h5, h6, .font-heading {
   </div>
 </div>
 
+<!-- 8. Modal แก้ไขข้อมูลผู้ดูแลระบบ (Admin Edit Modal) -->
+<div class="modal fade" id="modalAdminEdit" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content rounded-4 border-0 shadow">
+      <div class="modal-header bg-danger text-white rounded-top-4">
+        <h5 class="modal-title font-heading"><i class="bi bi-pencil-square me-2"></i>แก้ไขข้อมูลคำขอ (Admin Mode)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-4">
+        <form id="formAdminEdit">
+          <div class="row g-3">
+            <!-- Row 1: ID & Status -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">เลขที่คำขอ (ID)</label>
+              <input type="text" id="adm_id" class="form-control bg-light font-heading fw-bold text-primary" readonly>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">สถานะคำขอ</label>
+              <select id="adm_status" class="form-select">
+                <option value="pending">รอจัดรถ</option>
+                <option value="assigned">รอขับรถ / เดินทาง</option>
+                <option value="completed">เสร็จสิ้น</option>
+                <option value="cancelled">ยกเลิก</option>
+              </select>
+            </div>
+
+            <!-- Row 2: ผู้ขอ & กลุ่มงาน -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">ชื่อผู้ขอใช้รถ <span class="text-danger">*</span></label>
+              <input type="text" id="adm_requester" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">กลุ่มงาน / ฝ่าย</label>
+              <input type="text" id="adm_dept" class="form-control">
+            </div>
+
+            <!-- Row 3: วันเวลาที่ขอ -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">วันเวลาเดินทางไป</label>
+              <input type="datetime-local" id="adm_start" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">วันเวลากลับถึง</label>
+              <input type="datetime-local" id="adm_end" class="form-control">
+            </div>
+
+            <!-- Row 4: สถานที่ & เรื่อง -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">สถานที่ไป</label>
+              <input type="text" id="adm_place" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">เรื่อง / วัตถุประสงค์</label>
+              <input type="text" id="adm_subject" class="form-control">
+            </div>
+
+            <!-- Row 5: ประเภทรถ & จำนวนคน -->
+            <div class="col-md-4">
+              <label class="form-label fw-bold">ประเภทรถ</label>
+              <input type="text" id="adm_cartype" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">จำนวนคน</label>
+              <input type="number" id="adm_qty" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">ผู้โดยสาร (ได้แก่)</label>
+              <input type="text" id="adm_passengers" class="form-control">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-bold">รายละเอียดเพิ่มเติม</label>
+              <textarea id="adm_detail" class="form-control" rows="2"></textarea>
+            </div>
+
+            <hr class="my-2 text-muted">
+            <h6 class="text-primary font-heading mb-0"><i class="bi bi-key me-1"></i> ข้อมูลการจัดรถและคนขับ</h6>
+
+            <!-- Row 6: พขร. & รถ -->
+            <div class="col-md-4">
+              <label class="form-label fw-bold">พนักงานขับรถ (พขร.)</label>
+              <input type="text" id="adm_driver" class="form-control" placeholder="ชื่อ พขร.">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">ทะเบียนรถ</label>
+              <input type="text" id="adm_plate" class="form-control" placeholder="เช่น บม6115กจ">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">ยี่ห้อ / รุ่นรถ</label>
+              <input type="text" id="adm_model" class="form-control" placeholder="เช่น TOYOTA">
+            </div>
+
+            <hr class="my-2 text-muted">
+            <h6 class="text-success font-heading mb-0"><i class="bi bi-speedometer2 me-1"></i> รายงานการขับจริงและเลขไมล์</h6>
+
+            <!-- Row 7: ขับจริง & ขับถึงจริง -->
+            <div class="col-md-6">
+              <label class="form-label fw-bold">เวลาออกเดินทางจริง</label>
+              <input type="datetime-local" id="adm_act_start" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">เวลากลับถึงจริง</label>
+              <input type="datetime-local" id="adm_act_end" class="form-control">
+            </div>
+
+            <!-- Row 8: ไมล์ & น้ำมัน -->
+            <div class="col-md-4">
+              <label class="form-label fw-bold">เลขไมล์เริ่มต้น</label>
+              <input type="number" id="adm_start_km" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">เลขไมล์ถึง</label>
+              <input type="number" id="adm_end_km" class="form-control">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-bold">ผลต่าง (กม.)</label>
+              <input type="number" id="adm_diff_km" class="form-control bg-light" readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-bold">เติมน้ำมัน (ลิตร)</label>
+              <input type="number" step="0.01" id="adm_fuel" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">เป็นเงิน (บาท)</label>
+              <input type="number" step="0.01" id="adm_cost" class="form-control">
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between align-items-center gap-2 mt-4 pt-2 border-top">
+            <button type="button" class="btn btn-outline-danger rounded-pill px-3" onclick="adminDeleteCurrentRecord()">
+              <i class="bi bi-trash me-1"></i> ลบคำขอนี้
+            </button>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">ยกเลิก</button>
+              <button type="submit" class="btn btn-danger rounded-pill px-4 font-heading">
+                <i class="bi bi-save me-1"></i> บันทึกการแก้ไข
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ================= Vendor Scripts ================= -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -2572,7 +2805,7 @@ h1, h2, h3, h4, h5, h6, .font-heading {
 
 const CONFIG = {
   // URL Web App จาก Google Apps Script (อัปเดตใหม่ล่าสุด)
-  WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbzX1q54bEkVMhJeF4tDNMmzhfnnHMaWV-5O61Kc1_XwCZe_VqgiDDSrO-vBbDp5o4zchw/exec',
+  WEB_APP_URL: 'https://car-api.chanpibulwork.workers.dev/',
 
   // ข้อมูลหน่วยงาน
   HOSPITAL_NAME: 'โรงพยาบาลไทรโยค',
@@ -2587,7 +2820,8 @@ const CONFIG = {
   DEFAULT_PASSWORDS: {
     assign: '11278',
     driver: '1234',
-    oil: '11278'
+    oil: '11278',
+    admin: '11278'
   },
 
   // ประเภทการใช้รถ
@@ -4203,6 +4437,7 @@ let driverList = [];
 let unlockedAssign = false;
 let unlockedDriver = false;
 let unlockedOil = false;
+let unlockedAdmin = false;
 
 let isFetchingData = false;
 let isFetchingOil = false;
@@ -4220,6 +4455,7 @@ let sigPad2 = null;
 let modalAssign = null;
 let modalDriver = null;
 let modalView = null;
+let modalAdminEdit = null;
 let modalOilReq = null;
 let modalOilPen = null;
 let modalOilApp = null;
@@ -5415,6 +5651,10 @@ function renderTables() {
   renderMobileDriverCards(driverCardsList);
   renderMobileReportCards(reportCardsList);
 
+  // อัปเดตตารางและสถิติของผู้ดูแลระบบ (Admin)
+  renderAdminTable();
+  updateAdminCounters();
+
   initTableViewModes();
 }
 
@@ -6308,6 +6548,34 @@ async function checkLoginAndSwitch(pageId, linkElement = null) {
         return Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง', 'error');
       }
     }
+  if (pageId === 'page-admin' && !unlockedAdmin) {
+    const { value: pass } = await Swal.fire({
+      title: '🛡️ จัดการข้อมูล (Admin Mode)',
+      text: 'กรุณากรอกรหัสผ่านผู้ดูแลระบบส่วนกลาง',
+      input: 'password',
+      inputPlaceholder: 'กรอกรหัสผ่าน Admin',
+      showCancelButton: true,
+      confirmButtonText: 'เข้าสู่ระบบ',
+      confirmButtonColor: '#dc3545'
+    });
+    if (!pass) return;
+
+    try {
+      const res = await callAPI('checkAuth', { type: 'admin', pass: pass });
+      Swal.close();
+      if (res.data === true) {
+        unlockedAdmin = true;
+      } else {
+        return Swal.fire('ผิดพลาด', 'รหัสผ่าน Admin ไม่ถูกต้อง', 'error');
+      }
+    } catch (e) {
+      Swal.close();
+      if (pass === window.CONFIG?.DEFAULT_PASSWORDS?.admin || pass === '11278') {
+        unlockedAdmin = true;
+      } else {
+        return Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง', 'error');
+      }
+    }
   }
 
   Swal.close();
@@ -6380,6 +6648,10 @@ window.addEventListener('DOMContentLoaded', () => {
   modalOilPen = new bootstrap.Modal(document.getElementById('modalOilPending'));
   modalOilApp = new bootstrap.Modal(document.getElementById('modalOilApprove'));
   modalOilRep = new bootstrap.Modal(document.getElementById('modalOilReport'));
+  const modalAdminEl = document.getElementById('modalAdminEdit');
+  if (modalAdminEl) {
+    modalAdminEdit = new bootstrap.Modal(modalAdminEl);
+  }
 
   // Init Signatures
   sigPad1 = new DigitalSignature('sigCanvas1');
@@ -6394,6 +6666,7 @@ window.addEventListener('DOMContentLoaded', () => {
   setupAssignForm();
   setupDriverForm();
   setupOilModule();
+  setupAdminEditForm();
   startRealtimeClock();
   initTableViewModes();
 
@@ -6482,6 +6755,404 @@ window.applyReportCardsFilter = applyReportCardsFilter;
 window.loadMoreReportCards = loadMoreReportCards;
 window.loadData = loadData;
 window.initCachedData = initCachedData;
+
+/* ==========================================================================
+   14. Central Database Management (Admin Mode)
+   ========================================================================== */
+
+function renderAdminTable() {
+  const tableEl = document.getElementById('tableAdmin');
+  if (!tableEl) return;
+
+  const adminData = [];
+  globalData.forEach(row => {
+    if (!row || !row[0]) return;
+    const id = row[0];
+    const start = formatDateUI(row[4]);
+    const end = formatDateUI(row[5]);
+    const req = row[2] || '-';
+    const place = row[7] || '-';
+    const driver = row[12];
+    const plate = row[13];
+    const diffKm = row[19];
+
+    let status = 'รอจัดรถ';
+    let badgeClass = 'badge-status-pending';
+
+    if (driver) {
+      if (String(driver).includes('ยกเลิก')) {
+        status = 'ยกเลิก';
+        badgeClass = 'badge-status-cancelled';
+      } else if (diffKm !== '' && diffKm !== null && diffKm !== undefined) {
+        status = 'เสร็จสิ้น';
+        badgeClass = 'badge-status-completed';
+      } else {
+        status = 'รอขับรถ';
+        badgeClass = 'badge-status-assigned';
+      }
+    }
+
+    const actionBtns = `
+      <div class="d-flex gap-1">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill px-2 py-1" onclick="openView('${id}', false)" title="ดูรายละเอียด">
+          <i class="bi bi-search"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-primary rounded-pill px-2 py-1" onclick="openAdminEdit('${id}')" title="แก้ไข">
+          <i class="bi bi-pencil-square"></i>
+        </button>
+        <button class="btn btn-sm btn-outline-danger rounded-pill px-2 py-1" onclick="adminDeleteRecord('${id}')" title="ลบข้อมูล">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+    `;
+
+    adminData.push([
+      actionBtns,
+      `<span class="fw-bold font-heading text-primary">${id}</span>`,
+      `<span class="badge-status ${badgeClass}">${status}</span>`,
+      start,
+      `<span class="text-danger">${end}</span>`,
+      req,
+      place,
+      driver || '-',
+      plate || '-',
+      diffKm !== '' && diffKm !== null && diffKm !== undefined ? `${diffKm} กม.` : '-'
+    ]);
+  });
+
+  updateDataTable('#tableAdmin', adminData, [[1, 'desc']]);
+}
+
+function updateAdminCounters() {
+  let total = 0;
+  let pending = 0;
+  let assigned = 0;
+  let completed = 0;
+
+  globalData.forEach(row => {
+    if (!row || !row[0]) return;
+    total++;
+    const driver = row[12];
+    const diffKm = row[19];
+
+    if (driver && String(driver).includes('ยกเลิก')) {
+      // cancelled
+    } else if (driver && diffKm !== '' && diffKm !== null && diffKm !== undefined) {
+      completed++;
+    } else if (driver && driver.trim() !== '') {
+      assigned++;
+    } else {
+      pending++;
+    }
+  });
+
+  const elTotal = document.getElementById('adminTotalCount');
+  const elPending = document.getElementById('adminPendingCount');
+  const elAssigned = document.getElementById('adminAssignedCount');
+  const elCompleted = document.getElementById('adminCompletedCount');
+
+  if (elTotal) elTotal.textContent = total;
+  if (elPending) elPending.textContent = pending;
+  if (elAssigned) elAssigned.textContent = assigned;
+  if (elCompleted) elCompleted.textContent = completed;
+}
+
+function openAdminEdit(id) {
+  const row = globalData.find(r => r[0] == id);
+  if (!row) {
+    return Swal.fire('ไม่พบข้อมูล', `ไม่พบคำขอเลขที่ ${id} ในระบบ`, 'warning');
+  }
+
+  $('#adm_id').val(row[0] || '');
+
+  // กำหนดสถานะเริ่มต้น
+  const driver = row[12];
+  const diffKm = row[19];
+  let statusVal = 'pending';
+  if (driver && String(driver).includes('ยกเลิก')) {
+    statusVal = 'cancelled';
+  } else if (driver && diffKm !== '' && diffKm !== null && diffKm !== undefined) {
+    statusVal = 'completed';
+  } else if (driver && driver.trim() !== '') {
+    statusVal = 'assigned';
+  }
+  $('#adm_status').val(statusVal);
+
+  $('#adm_requester').val(row[2] || '');
+  $('#adm_dept').val(row[3] || '');
+  $('#adm_start').val(toDateTimeLocal(row[4]));
+  $('#adm_end').val(toDateTimeLocal(row[5]));
+  $('#adm_place').val(row[7] || '');
+  $('#adm_subject').val(row[6] || '');
+  $('#adm_cartype').val(row[11] || '');
+  $('#adm_qty').val(row[8] !== undefined && row[8] !== null ? row[8] : '');
+  $('#adm_passengers').val(row[9] || '');
+  $('#adm_detail').val(row[10] || '');
+  $('#adm_driver').val(row[12] || '');
+  $('#adm_plate').val(row[13] || '');
+  $('#adm_model').val(row[14] || '');
+  $('#adm_act_start').val(toDateTimeLocal(row[15] || row[4]));
+  $('#adm_act_end').val(toDateTimeLocal(row[16] || row[5]));
+  $('#adm_start_km').val(row[17] !== undefined && row[17] !== null ? row[17] : '');
+  $('#adm_end_km').val(row[18] !== undefined && row[18] !== null ? row[18] : '');
+  $('#adm_diff_km').val(row[19] !== undefined && row[19] !== null ? row[19] : '');
+  $('#adm_fuel').val(row[20] !== undefined && row[20] !== null ? row[20] : '');
+  $('#adm_cost').val(row[21] !== undefined && row[21] !== null ? row[21] : '');
+
+  if (modalAdminEdit) {
+    modalAdminEdit.show();
+  }
+}
+
+function setupAdminEditForm() {
+  const form = document.getElementById('formAdminEdit');
+  if (!form) return;
+
+  $('#adm_start_km, #adm_end_km').on('input', function () {
+    const s = parseFloat($('#adm_start_km').val());
+    const e = parseFloat($('#adm_end_km').val());
+    if (!isNaN(s) && !isNaN(e) && e >= s) {
+      $('#adm_diff_km').val(e - s);
+    } else {
+      $('#adm_diff_km').val('');
+    }
+  });
+
+  $('#adm_status').on('change', function () {
+    const val = $(this).val();
+    if (val === 'cancelled') {
+      const curDriver = $('#adm_driver').val().trim();
+      if (!curDriver.includes('ยกเลิก')) {
+        $('#adm_driver').val(curDriver ? `${curDriver} (ยกเลิก)` : 'ยกเลิก');
+      }
+    }
+  });
+
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const id = $('#adm_id').val();
+    if (!id) return;
+
+    const statusVal = $('#adm_status').val();
+    let driverVal = $('#adm_driver').val().trim();
+    if (statusVal === 'cancelled' && !driverVal.includes('ยกเลิก')) {
+      driverVal = 'ยกเลิก';
+    } else if (statusVal !== 'cancelled' && driverVal.includes('ยกเลิก')) {
+      driverVal = '';
+    }
+
+    const payload = {
+      id: id,
+      requester: $('#adm_requester').val().trim(),
+      dept: $('#adm_dept').val().trim(),
+      start: $('#adm_start').val(),
+      end: $('#adm_end').val(),
+      place: $('#adm_place').val().trim(),
+      subject: $('#adm_subject').val().trim(),
+      carType: $('#adm_cartype').val().trim(),
+      qty: $('#adm_qty').val(),
+      passengers: $('#adm_passengers').val().trim(),
+      detail: $('#adm_detail').val().trim(),
+      driver: driverVal,
+      plate: $('#adm_plate').val().trim(),
+      model: $('#adm_model').val().trim(),
+      actStart: $('#adm_act_start').val(),
+      actEnd: $('#adm_act_end').val(),
+      startKm: $('#adm_start_km').val(),
+      endKm: $('#adm_end_km').val(),
+      diffKm: $('#adm_diff_km').val(),
+      fuel: $('#adm_fuel').val(),
+      cost: $('#adm_cost').val()
+    };
+
+    if (modalAdminEdit) modalAdminEdit.hide();
+
+    // Optimistic Update ทันที
+    const targetIdx = globalData.findIndex(r => r[0] == id);
+    let prevRow = null;
+    if (targetIdx !== -1) {
+      prevRow = [...globalData[targetIdx]];
+      globalData[targetIdx][2] = payload.requester;
+      globalData[targetIdx][3] = payload.dept;
+      globalData[targetIdx][4] = payload.start;
+      globalData[targetIdx][5] = payload.end;
+      globalData[targetIdx][6] = payload.subject;
+      globalData[targetIdx][7] = payload.place;
+      globalData[targetIdx][8] = payload.qty;
+      globalData[targetIdx][9] = payload.passengers;
+      globalData[targetIdx][10] = payload.detail;
+      globalData[targetIdx][11] = payload.carType;
+      globalData[targetIdx][12] = payload.driver;
+      globalData[targetIdx][13] = payload.plate;
+      globalData[targetIdx][14] = payload.model;
+      globalData[targetIdx][15] = payload.actStart;
+      globalData[targetIdx][16] = payload.actEnd;
+      globalData[targetIdx][17] = payload.startKm;
+      globalData[targetIdx][18] = payload.endKm;
+      globalData[targetIdx][19] = payload.diffKm;
+      globalData[targetIdx][20] = payload.fuel;
+      globalData[targetIdx][21] = payload.cost;
+      saveLocalDataCache(globalData);
+      renderTables();
+      updateBadgeCounters();
+      if (carDashboard) carDashboard.setData(globalData);
+    }
+
+    updateSyncBadge('syncing', 'กำลังบันทึกข้อมูล...');
+
+    try {
+      const res = await callAPI('updateRecord', payload);
+      const updatedRow = res?.data?.updatedRow || res?.updatedRow;
+      if (updatedRow && targetIdx !== -1) {
+        globalData[targetIdx] = updatedRow;
+        saveLocalDataCache(globalData);
+        renderTables();
+        updateBadgeCounters();
+      }
+      updateSyncBadge('online', 'ออนไลน์ (ซิงค์แล้ว)');
+
+      Swal.fire({
+        icon: 'success',
+        title: 'บันทึกสำเร็จ!',
+        text: `อัปเดตคำขอเลขที่ ${id} เรียบร้อยแล้ว`,
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (err) {
+      if (prevRow && targetIdx !== -1) {
+        globalData[targetIdx] = prevRow;
+        saveLocalDataCache(globalData);
+        renderTables();
+        updateBadgeCounters();
+      }
+      updateSyncBadge('offline', 'เกิดข้อผิดพลาดในการบันทึก');
+      Swal.fire('เกิดข้อผิดพลาด', err.message || 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+    }
+  });
+}
+
+async function adminDeleteRecord(id) {
+  if (!id) return;
+
+  const confirm = await Swal.fire({
+    title: 'ยืนยันการลบข้อมูล?',
+    html: `คุณต้องการลบคำขอเลขที่ <b class="text-danger">${id}</b> ออกจากระบบอย่างถาวรหรือไม่?<br><small class="text-muted">ข้อมูลจะถูกลบทั้งใน Cloudflare D1 และ Google Sheets</small>`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'ใช่, ต้องการลบ!',
+    cancelButtonText: 'ยกเลิก'
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  const targetIdx = globalData.findIndex(r => r[0] == id);
+  const deletedRow = targetIdx !== -1 ? [...globalData[targetIdx]] : null;
+
+  // Optimistic Delete ทันที
+  if (targetIdx !== -1) {
+    globalData.splice(targetIdx, 1);
+    saveLocalDataCache(globalData);
+    renderTables();
+    updateBadgeCounters();
+    if (carDashboard) carDashboard.setData(globalData);
+  }
+
+  updateSyncBadge('syncing', 'กำลังลบข้อมูล...');
+
+  try {
+    await callAPI('deleteRecord', { id });
+    updateSyncBadge('online', 'ออนไลน์ (ซิงค์แล้ว)');
+
+    Swal.fire({
+      icon: 'success',
+      title: 'ลบข้อมูลสำเร็จ!',
+      text: `ลบคำขอเลขที่ ${id} เรียบร้อยแล้ว`,
+      timer: 1500,
+      showConfirmButton: false
+    });
+  } catch (err) {
+    // Rollback
+    if (deletedRow && targetIdx !== -1) {
+      globalData.splice(targetIdx, 0, deletedRow);
+      saveLocalDataCache(globalData);
+      renderTables();
+      updateBadgeCounters();
+      if (carDashboard) carDashboard.setData(globalData);
+    }
+    updateSyncBadge('offline', 'เกิดข้อผิดพลาดในการลบ');
+    Swal.fire('เกิดข้อผิดพลาด', err.message || 'ไม่สามารถลบข้อมูลได้', 'error');
+  }
+}
+
+async function adminDeleteCurrentRecord() {
+  const id = $('#adm_id').val();
+  if (!id) return;
+  if (modalAdminEdit) modalAdminEdit.hide();
+  await adminDeleteRecord(id);
+}
+
+function exportAdminCSV() {
+  if (!globalData || globalData.length === 0) {
+    return Swal.fire('ไม่มีข้อมูล', 'ยังไม่มีรายการคำขอในระบบสำหรับส่งออก', 'info');
+  }
+
+  const headers = [
+    'เลขที่คำขอ', 'วันเวลาที่บันทึก', 'ผู้ขอ', 'กลุ่มงาน', 'วันเวลาเดินทาง', 'วันเวลากลับ',
+    'เรื่อง/วัตถุประสงค์', 'สถานที่ไป', 'จำนวนคน', 'ผู้ร่วมเดินทาง', 'รายละเอียด', 'ประเภทรถ',
+    'พขร.', 'ทะเบียนรถ', 'ยี่ห้อรถ', 'ออกจริง', 'กลับจริง', 'ไมล์เริ่มต้น', 'ไมล์สิ้นสุด',
+    'ระยะทาง(กม.)', 'น้ำมัน(ลิตร)', 'ค่าน้ำมัน(บาท)', 'EventID', 'จำนวนพิมพ์'
+  ];
+
+  const escapeCSV = (val) => {
+    if (val === null || val === undefined) return '""';
+    const s = String(val).replace(/"/g, '""');
+    return `"${s}"`;
+  };
+
+  let csvContent = '\uFEFF'; // UTF-8 BOM สำหรับเปิดใน MS Excel
+  csvContent += headers.map(escapeCSV).join(',') + '\r\n';
+
+  globalData.forEach(row => {
+    if (!row || !row[0]) return;
+    const rowLine = [];
+    for (let i = 0; i < 24; i++) {
+      rowLine.push(escapeCSV(row[i]));
+    }
+    csvContent += rowLine.join(',') + '\r\n';
+  });
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const now = new Date();
+  const dateStr = now.toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `car_requests_export_${dateStr}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function lockAdminSession() {
+  unlockedAdmin = false;
+  Swal.fire({
+    icon: 'info',
+    title: 'ออกจากโหมด Admin แล้ว',
+    text: 'ล็อกระบบจัดการเรียบร้อยแล้ว',
+    timer: 1500,
+    showConfirmButton: false
+  });
+  switchPage('page-dashboard');
+}
+
+window.openAdminEdit = openAdminEdit;
+window.adminDeleteRecord = adminDeleteRecord;
+window.adminDeleteCurrentRecord = adminDeleteCurrentRecord;
+window.exportAdminCSV = exportAdminCSV;
+window.lockAdminSession = lockAdminSession;
 
 
 </script>
