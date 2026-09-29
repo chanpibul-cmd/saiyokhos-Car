@@ -5107,6 +5107,24 @@ function updateBadgeCounters() {
    4. Table Rendering & DataTables
    ========================================================================== */
 
+const DATATABLES_THAI_LANG = {
+  emptyTable: "ไม่มีข้อมูลในตาราง",
+  info: "แสดง _START_ ถึง _END_ จากทั้งหมด _TOTAL_ รายการ",
+  infoEmpty: "แสดง 0 ถึง 0 จาก 0 รายการ",
+  infoFiltered: "(กรองจากทั้งหมด _MAX_ รายการ)",
+  lengthMenu: "แสดง _MENU_ รายการ",
+  loadingRecords: "กำลังโหลด...",
+  processing: "กำลังประมวลผล...",
+  search: "ค้นหา:",
+  zeroRecords: "ไม่พบข้อมูลที่ค้นหา",
+  paginate: {
+    first: "หน้าแรก",
+    last: "หน้าสุดท้าย",
+    next: "ถัดไป",
+    previous: "ก่อนหน้า"
+  }
+};
+
 function formatDateUI(dStr) {
   if (!dStr) return '-';
   const d = parseSafeDate(dStr);
@@ -5626,7 +5644,7 @@ function renderTables() {
       data: driverData,
       responsive: true,
       autoWidth: false,
-      language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json' },
+      language: DATATABLES_THAI_LANG,
       order: [[1, 'desc']],
       stateSave: true
     });
@@ -5666,7 +5684,7 @@ function updateDataTable(selector, dataset, order) {
       data: dataset,
       responsive: true,
       autoWidth: false,
-      language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/th.json' },
+      language: DATATABLES_THAI_LANG,
       order: order,
       stateSave: true
     });
@@ -6548,6 +6566,8 @@ async function checkLoginAndSwitch(pageId, linkElement = null) {
         return Swal.fire('ผิดพลาด', 'รหัสผ่านไม่ถูกต้อง', 'error');
       }
     }
+  }
+
   if (pageId === 'page-admin' && !unlockedAdmin) {
     const { value: pass } = await Swal.fire({
       title: '🛡️ จัดการข้อมูล (Admin Mode)',
